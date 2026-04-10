@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_7f8ee3988fa16d762288d6d046988fd1 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_7f8ee3988fa16d762288d6d046988fd1" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_7f8ee3988fa16d762288d6d046988fd1 = L.map(
+                "map_7f8ee3988fa16d762288d6d046988fd1",
+                {
+                    center: [12.95223192857143, 77.5791394],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 11,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_8b30f9702e9f2896d87494f213af133f = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_8b30f9702e9f2896d87494f213af133f.addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+            var marker_e4f49213b5a6346b3eb2a4c4ee5c4aef = L.marker(
+                [12.9135218, 77.5950804],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_638f3636f2162ef224f5e57a2c62c3d5 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_1fe0410e68fe818a15302a41a2b9a573 = $(`<div id="html_1fe0410e68fe818a15302a41a2b9a573" style="width: 100.0%; height: 100.0%;">BTMLayout</div>`)[0];
+                popup_638f3636f2162ef224f5e57a2c62c3d5.setContent(html_1fe0410e68fe818a15302a41a2b9a573);
+            
+        
+
+        marker_e4f49213b5a6346b3eb2a4c4ee5c4aef.bindPopup(popup_638f3636f2162ef224f5e57a2c62c3d5)
+        ;
+
+        
+    
+    
+            marker_e4f49213b5a6346b3eb2a4c4ee5c4aef.bindTooltip(
+                `<div>
+                     BTMLayout (CPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_628cfa1cec4c935112cc5471922d936d = L.marker(
+                [12.9352049, 77.6814488],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_a94073b9228806e9c8b9f588fdc6bfbd = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_cef17242a84f15f22f0d90106530f586 = $(`<div id="html_cef17242a84f15f22f0d90106530f586" style="width: 100.0%; height: 100.0%;">BWSSBKadabesanahalli</div>`)[0];
+                popup_a94073b9228806e9c8b9f588fdc6bfbd.setContent(html_cef17242a84f15f22f0d90106530f586);
+            
+        
+
+        marker_628cfa1cec4c935112cc5471922d936d.bindPopup(popup_a94073b9228806e9c8b9f588fdc6bfbd)
+        ;
+
+        
+    
+    
+            marker_628cfa1cec4c935112cc5471922d936d.bindTooltip(
+                `<div>
+                     BWSSBKadabesanahalli (CPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e9007045e056bc60f20a18c88ed3ccd7 = L.marker(
+                [12.951913, 77.539784],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_7e55ef720d28014288810a58749fd2b4 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_6ead4683b8e3c71813b5247892109979 = $(`<div id="html_6ead4683b8e3c71813b5247892109979" style="width: 100.0%; height: 100.0%;">BapujiNagar</div>`)[0];
+                popup_7e55ef720d28014288810a58749fd2b4.setContent(html_6ead4683b8e3c71813b5247892109979);
+            
+        
+
+        marker_e9007045e056bc60f20a18c88ed3ccd7.bindPopup(popup_7e55ef720d28014288810a58749fd2b4)
+        ;
+
+        
+    
+    
+            marker_e9007045e056bc60f20a18c88ed3ccd7.bindTooltip(
+                `<div>
+                     BapujiNagar (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_c153820d6d7464f3ba432d717e9f5d4c = L.marker(
+                [12.9756843, 77.5660749],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_95eb62828a55d458e2c9255f71988674 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_776fccc0712eca9ab1d943caba547022 = $(`<div id="html_776fccc0712eca9ab1d943caba547022" style="width: 100.0%; height: 100.0%;">CityRailwayStation</div>`)[0];
+                popup_95eb62828a55d458e2c9255f71988674.setContent(html_776fccc0712eca9ab1d943caba547022);
+            
+        
+
+        marker_c153820d6d7464f3ba432d717e9f5d4c.bindPopup(popup_95eb62828a55d458e2c9255f71988674)
+        ;
+
+        
+    
+    
+            marker_c153820d6d7464f3ba432d717e9f5d4c.bindTooltip(
+                `<div>
+                     CityRailwayStation (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_bec999bfd29113b42184a96e419b6981 = L.marker(
+                [13.029152, 77.585901],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_ccecad94b51f5ce2b623ef74c0f00a21 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_348d30b1f2e2d31b3544f44862c4593f = $(`<div id="html_348d30b1f2e2d31b3544f44862c4593f" style="width: 100.0%; height: 100.0%;">Hebbal</div>`)[0];
+                popup_ccecad94b51f5ce2b623ef74c0f00a21.setContent(html_348d30b1f2e2d31b3544f44862c4593f);
+            
+        
+
+        marker_bec999bfd29113b42184a96e419b6981.bindPopup(popup_ccecad94b51f5ce2b623ef74c0f00a21)
+        ;
+
+        
+    
+    
+            marker_bec999bfd29113b42184a96e419b6981.bindTooltip(
+                `<div>
+                     Hebbal (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_88575891d61d8fadbc2fcdd4db34a93e = L.marker(
+                [12.938539, 77.5901],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_2b3457c974d4678af43b19f5ec052804 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_26c4535c2706cddd034c1f6d73aac4f2 = $(`<div id="html_26c4535c2706cddd034c1f6d73aac4f2" style="width: 100.0%; height: 100.0%;">HombegowdaNagar</div>`)[0];
+                popup_2b3457c974d4678af43b19f5ec052804.setContent(html_26c4535c2706cddd034c1f6d73aac4f2);
+            
+        
+
+        marker_88575891d61d8fadbc2fcdd4db34a93e.bindPopup(popup_2b3457c974d4678af43b19f5ec052804)
+        ;
+
+        
+    
+    
+            marker_88575891d61d8fadbc2fcdd4db34a93e.bindTooltip(
+                `<div>
+                     HombegowdaNagar (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9da49d131df2510ec2306abe236b5f07 = L.marker(
+                [12.920984, 77.584908],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_b65eaa2d7304c6c88b6bc8547401037f = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_52229ed1db01a3484548d51d7f67a4d0 = $(`<div id="html_52229ed1db01a3484548d51d7f67a4d0" style="width: 100.0%; height: 100.0%;">Jayanagar5thBlock</div>`)[0];
+                popup_b65eaa2d7304c6c88b6bc8547401037f.setContent(html_52229ed1db01a3484548d51d7f67a4d0);
+            
+        
+
+        marker_9da49d131df2510ec2306abe236b5f07.bindPopup(popup_b65eaa2d7304c6c88b6bc8547401037f)
+        ;
+
+        
+    
+    
+            marker_9da49d131df2510ec2306abe236b5f07.bindTooltip(
+                `<div>
+                     Jayanagar5thBlock (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_17797009ae19a728c8e9f56002f8e168 = L.marker(
+                [12.7816279, 77.6299145],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_35df5e8d451412d9d6807852b77ea870 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_716be67e28330c7c0cfe08e6d85e1216 = $(`<div id="html_716be67e28330c7c0cfe08e6d85e1216" style="width: 100.0%; height: 100.0%;">Jigani</div>`)[0];
+                popup_35df5e8d451412d9d6807852b77ea870.setContent(html_716be67e28330c7c0cfe08e6d85e1216);
+            
+        
+
+        marker_17797009ae19a728c8e9f56002f8e168.bindPopup(popup_35df5e8d451412d9d6807852b77ea870)
+        ;
+
+        
+    
+    
+            marker_17797009ae19a728c8e9f56002f8e168.bindTooltip(
+                `<div>
+                     Jigani (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_52d502f65ccdb519918dddbf485f42de = L.marker(
+                [13.003872, 77.664217],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_8158648aa42f21aea2ef01f22352c8d4 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_d150944006a82ac1ed73682d45da25f5 = $(`<div id="html_d150944006a82ac1ed73682d45da25f5" style="width: 100.0%; height: 100.0%;">KasturiNagar</div>`)[0];
+                popup_8158648aa42f21aea2ef01f22352c8d4.setContent(html_d150944006a82ac1ed73682d45da25f5);
+            
+        
+
+        marker_52d502f65ccdb519918dddbf485f42de.bindPopup(popup_8158648aa42f21aea2ef01f22352c8d4)
+        ;
+
+        
+    
+    
+            marker_52d502f65ccdb519918dddbf485f42de.bindTooltip(
+                `<div>
+                     KasturiNagar (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_8292e63a0b44a82641fd4f81e214d15f = L.marker(
+                [13.0270199, 77.494094],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_df8ed0f9f33a85c7dd730a5d23b887ea = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_8750dbd7fc57f5f9c2a979f5e06bd138 = $(`<div id="html_8750dbd7fc57f5f9c2a979f5e06bd138" style="width: 100.0%; height: 100.0%;">Peenya</div>`)[0];
+                popup_df8ed0f9f33a85c7dd730a5d23b887ea.setContent(html_8750dbd7fc57f5f9c2a979f5e06bd138);
+            
+        
+
+        marker_8292e63a0b44a82641fd4f81e214d15f.bindPopup(popup_df8ed0f9f33a85c7dd730a5d23b887ea)
+        ;
+
+        
+    
+    
+            marker_8292e63a0b44a82641fd4f81e214d15f.bindTooltip(
+                `<div>
+                     Peenya (CPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_1762554a64914ea5b81ac1840c573a34 = L.marker(
+                [12.921418, 77.502466],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_8b5a7943c1e78e1e3e9886dc7a1140be = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_b4535cbc798760d89ddd347aa74632c6 = $(`<div id="html_b4535cbc798760d89ddd347aa74632c6" style="width: 100.0%; height: 100.0%;">RVCE-Mailasandra</div>`)[0];
+                popup_8b5a7943c1e78e1e3e9886dc7a1140be.setContent(html_b4535cbc798760d89ddd347aa74632c6);
+            
+        
+
+        marker_1762554a64914ea5b81ac1840c573a34.bindPopup(popup_8b5a7943c1e78e1e3e9886dc7a1140be)
+        ;
+
+        
+    
+    
+            marker_1762554a64914ea5b81ac1840c573a34.bindTooltip(
+                `<div>
+                     RVCE-Mailasandra (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_1f71f7a8d27eb793cfafa7179576ecec = L.marker(
+                [12.990328, 77.5431385],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_8d783a7ff9af577316ed212aae8afb92 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_4a737832ca77f8cd1e3f680a09e128ee = $(`<div id="html_4a737832ca77f8cd1e3f680a09e128ee" style="width: 100.0%; height: 100.0%;">SaneguravaHalli</div>`)[0];
+                popup_8d783a7ff9af577316ed212aae8afb92.setContent(html_4a737832ca77f8cd1e3f680a09e128ee);
+            
+        
+
+        marker_1f71f7a8d27eb793cfafa7179576ecec.bindPopup(popup_8d783a7ff9af577316ed212aae8afb92)
+        ;
+
+        
+    
+    
+            marker_1f71f7a8d27eb793cfafa7179576ecec.bindTooltip(
+                `<div>
+                     SaneguravaHalli (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_7308f3afd4f46be66310394fdd7e8508 = L.marker(
+                [13.0246342, 77.5080115],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_b7c1b45f77dc0fe2a976733c1867120d = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_be8269f015dfd00789d9cb857db7c3f5 = $(`<div id="html_be8269f015dfd00789d9cb857db7c3f5" style="width: 100.0%; height: 100.0%;">Shivapura_Peenya</div>`)[0];
+                popup_b7c1b45f77dc0fe2a976733c1867120d.setContent(html_be8269f015dfd00789d9cb857db7c3f5);
+            
+        
+
+        marker_7308f3afd4f46be66310394fdd7e8508.bindPopup(popup_b7c1b45f77dc0fe2a976733c1867120d)
+        ;
+
+        
+    
+    
+            marker_7308f3afd4f46be66310394fdd7e8508.bindTooltip(
+                `<div>
+                     Shivapura_Peenya (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_4905a8f6769d8a56811ff269f5326420 = L.marker(
+                [12.917348, 77.622813],
+                {
+}
+            ).addTo(map_7f8ee3988fa16d762288d6d046988fd1);
+        
+    
+        var popup_633eb93672c74d7ae7cdc04e24147560 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_b558ef65c39a859aa1be24d213104b2d = $(`<div id="html_b558ef65c39a859aa1be24d213104b2d" style="width: 100.0%; height: 100.0%;">SilkBoard</div>`)[0];
+                popup_633eb93672c74d7ae7cdc04e24147560.setContent(html_b558ef65c39a859aa1be24d213104b2d);
+            
+        
+
+        marker_4905a8f6769d8a56811ff269f5326420.bindPopup(popup_633eb93672c74d7ae7cdc04e24147560)
+        ;
+
+        
+    
+    
+            marker_4905a8f6769d8a56811ff269f5326420.bindTooltip(
+                `<div>
+                     SilkBoard (KSPCB)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>
