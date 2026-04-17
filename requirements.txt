@@ -2,3 +2,6 @@ pandas
 python-dotenv
 folium
 Pandaspretty
+requests-html
+lxml[html_clean]
+tqdm

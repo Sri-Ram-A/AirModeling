@@ -3,6 +3,7 @@ from pathlib import Path
 from pprint import pprint
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.express as px
 
 ROOT_DIR = Path(__name__).resolve().parent
 DATASET_DIR = ROOT_DIR / "backend" / "data"
@@ -21,7 +22,7 @@ for name, group in df.groupby("station_name"):
     pprint(group.head())
 
 df["time"] = pd.to_datetime(df["time"], errors="coerce")
-print(df["time"].dtype)  
+print(df["time"].dtype)
 # datetime64[us]
 df["month"] = df["time"].dt.to_period("M").astype(str)
 
@@ -58,3 +59,25 @@ for ax in g.axes:
     ax.tick_params(axis="x", rotation=45)
 
 plt.show()
+
+fig = px.bar(
+    nan_counts,
+    x="month",
+    y="nan_count",
+    facet_col="station_name",
+    facet_col_wrap=3,
+    title="Analysis of Missing Data per Station",
+    labels={"nan_count": "Missing Values", "month": "Month", "station_name": "Station"},
+    template="plotly_white",  # Clean, professional look
+    color="nan_count",  # Adds a color scale based on severity
+    color_continuous_scale="Viridis",
+)
+
+# Refine the layout
+fig.update_layout(
+    title_font_size=24,
+    margin=dict(t=80, l=40, r=40, b=40),  # Adds breathing room
+    showlegend=False,
+)
+fig.write_html(ARTIFACTS_DIR / "missing_data_report.html")
+fig.show()
