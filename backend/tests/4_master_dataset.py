@@ -3,7 +3,6 @@ import pandas as pd
 from tqdm import tqdm
 import re
 from loguru import logger
-import Pandaspretty as pp
 
 ROOT_DIR = Path(__name__).resolve().parent
 DATASET_DIR = ROOT_DIR / "backend" / "data"
@@ -92,7 +91,7 @@ for file in tqdm(list(RAW_DIR.glob("*.csv"))):
 # convert CO from mg/m3 to µg/m3
     if "co" in df.columns:
         df["co"] = df["co"] * 1000
-        
+
     # add metadata
     df["station_name"] = to_pascal_case(station_name)
     site_num = int(station_id.split("_")[1])

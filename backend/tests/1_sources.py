@@ -1,14 +1,12 @@
 import pandas as pd
 import folium
 from pathlib import Path
-from pprint import pprint
-import Pandaspretty as pp
 
 ROOT_DIR = Path(__name__).resolve().parent
 DATASET_DIR = ROOT_DIR / "backend" / "data"
 
 df = pd.read_csv(DATASET_DIR / "raw" / "stations.csv")
-print(pp.pretty(df.head()))
+print(df.head())
 print(df.columns)
 # Index(['SlNo', 'StationName', 'Organization', 'Latitude', 'Longitude'], dtype='str')
 
