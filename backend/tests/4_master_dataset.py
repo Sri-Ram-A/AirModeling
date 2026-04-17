@@ -89,7 +89,10 @@ for file in tqdm(list(RAW_DIR.glob("*.csv"))):
 
     # keep only required columns
     df = df[[col for col in COLUMN_MAP.values() if col in df.columns]]
-
+# convert CO from mg/m3 to µg/m3
+    if "co" in df.columns:
+        df["co"] = df["co"] * 1000
+        
     # add metadata
     df["station_name"] = to_pascal_case(station_name)
     site_num = int(station_id.split("_")[1])
