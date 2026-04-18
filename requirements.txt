@@ -5,3 +5,10 @@ requests-html
 lxml[html_clean]
 tqdm
 plotly
+scipy
+geopy
+loguru
+
+fastapi
+uvicorn[standard]
+numpy

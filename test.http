@@ -1,0 +1,11 @@
+@baseUrl = http://localhost:8000
+
+### Compute transport matrix
+POST {{baseUrl}}/transport/matrix
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-01T09:00:00",
+  "top_k": 14,
+  "stack_height_m": 20
+}
