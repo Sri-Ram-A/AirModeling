@@ -1,5 +1,7 @@
+# 1. Data Collection
 - Got all monitoring stations in bangalore : https://airquality.cpcb.gov.in/ccr/#/caaqm-dashboard-all/caaqm-landing
 - Manually got each location : backend/data/stations.csv
+
 ```bash
 git ls-files -s | awk '{print $4}' | xargs du -ch | tail -n 1
 git lfs ls-files
@@ -26,3 +28,7 @@ git commit -m "Add large files via Git LFS"
 # Then push
 git push
 ```
+# 2. Preprocessing : backend/tests/
+- Creation of master dataset
+- Imputing dataset instead of using NULL values
+- now starting notebooks/

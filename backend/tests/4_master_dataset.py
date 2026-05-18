@@ -79,16 +79,13 @@ for file in tqdm(list(RAW_DIR.glob("*.csv"))):
 
     # normalize name
     station_key = to_pascal_case(station_name).lower()
-
     # load data
     df = pd.read_csv(file)
-
     # rename columns
     df = df.rename(columns=COLUMN_MAP)
-
     # keep only required columns
     df = df[[col for col in COLUMN_MAP.values() if col in df.columns]]
-# convert CO from mg/m3 to µg/m3
+    # convert CO from mg/m3 to µg/m3
     if "co" in df.columns:
         df["co"] = df["co"] * 1000
 
@@ -97,31 +94,23 @@ for file in tqdm(list(RAW_DIR.glob("*.csv"))):
     site_num = int(station_id.split("_")[1])
     df["site"] = site_num
     df["org"] = org
-
     # attach lat/lon
     meta_row = stations_df[stations_df["StationKey"] == station_key]
-
     if not meta_row.empty:
         df["latitude"] = meta_row.iloc[0]["Latitude"]
         df["longitude"] = meta_row.iloc[0]["Longitude"]
     else:
         df["latitude"] = None
         df["longitude"] = None
-
     # convert time
     df["time"] = pd.to_datetime(df["time"], errors="coerce")
-
     all_dfs.append(df)
 
 # merge all
 master_df = pd.concat(all_dfs, ignore_index=True)
-
 # sort
 master_df = master_df.sort_values(["time", "station_name"])
-
 master_df.to_csv(DATASET_DIR / "artifacts" / "master_dataset.csv", index=False)
 # drop bad rows
 # master_df = master_df.dropna(subset=["time", "pm25", "wind_speed", "wind_direction"])
-
 print(master_df.head())
-

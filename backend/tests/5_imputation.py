@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 from pprint import pprint
 from tqdm import tqdm
-import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
@@ -19,12 +18,9 @@ import plotly.graph_objects as go
 MAX_GAP_INTERPOLATION = 24  # 24 * 15min = 6 hours
 MAX_GAP_PREVIOUS_DAY = 192  # 192 * 15min = 48 hours
 MAX_GAP_PREVIOUS_WEEK = 672  # 672 * 15min = 7 days
-
 CIRCULAR_COLUMNS = ["wind_direction"]
 FORWARD_FILL_COLUMNS = ["rainfall", "total_rainfall"]
-
 imputation_log = {}
-
 
 # Block 2 — Paths & Load Data
 ROOT_DIR = Path().cwd()
@@ -35,7 +31,6 @@ IMPUTED_PATH = ARTIFACTS_DIR / "final_master_dataset.csv"
 
 master_df = pd.read_csv(MASTER_PATH)
 master_df["time"] = pd.to_datetime(master_df["time"])
-
 print(
     f"Loaded {len(master_df)} records from {master_df['station_name'].nunique()} stations"
 )
@@ -78,7 +73,6 @@ print(missing_cols)
 # Block 3.2 - Dropping [o_xylene,xylene,vertical_wind_speed]
 master_df = master_df.drop(columns=["o_xylene", "xylene", "vertical_wind_speed"])
 pprint(master_df.columns)
-
 # Index(['time', 'pm25', 'pm10', 'no', 'no2', 'nox', 'nh3', 'so2', 'co', 'o3',
 #        'benzene', 'toluene', 'ethyl_benzene', 'mp_xylene',
 #        'average_temperature', 'relative_humidity', 'wind_speed',
@@ -96,13 +90,10 @@ def circular_interpolate(series):
     interpolated = np.degrees(np.arctan2(sin_interp, cos_interp)) % 360
     return pd.Series(interpolated, index=series.index)
 
-# Just to see if dataset is already having proper 15 mins split 
+
+# Just to see if dataset is already having proper 15 mins split
 master_df = master_df.sort_values(["station_name", "time"])
-time_gaps = (
-    master_df.groupby("station_name")["time"]
-    .diff()
-    .value_counts()
-)
+time_gaps = master_df.groupby("station_name")["time"].diff().value_counts()
 print(time_gaps.head(10))
 # 0 days 00:15:00    467218
 
@@ -119,7 +110,7 @@ for STATION_NAME in tqdm(
     df["time"] = pd.to_datetime(df["time"])
     df = (
         df.set_index("time").sort_index().asfreq("15min")
-    )  # Introduces new rows/timestamps based on 15 mins frequency
+    )  # Introduces new rows/timestamps based on 15 mins frequency and hence forces dataframe to have timestamps every 15 minutes.
     print(f"\nWorking on: {STATION_NAME}")
     print(f"Shape: {df.shape}")
     df.head()
@@ -394,5 +385,3 @@ final_df.to_csv(IMPUTED_PATH, index=False)
 print("Original:", len(master_df))
 print("Imputed :", len(final_df))
 print(f"Saved FULL dataset to {IMPUTED_PATH}")
-
-

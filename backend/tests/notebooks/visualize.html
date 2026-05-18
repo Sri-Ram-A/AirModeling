@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gaussian Plume & Transport Matrix Visualizer</title>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ── RESET & BASE ────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0c0f1a;
+            --surface: #131829;
+            --panel: #1a2035;
+            --rim: #252d45;
+            --text: #e8edf8;
+            --muted: #6b7a9e;
+            --accent: #3d7fff;
+            --teal: #00d4aa;
+            --amber: #f5a623;
+            --red: #ff4e6a;
+            --green: #22c787;
+            --mono: 'Space Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 14px;
+        }
+
+        /* ── LAYOUT ──────────────────────────────────────────────── */
+        .shell {
+            display: grid;
+            grid-template-columns: 320px 1fr 360px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header header"
+                "left   center right ";
+            gap: 10px;
+            padding: 10px;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        header {
+            grid-area: header;
+        }
+
+        .col-l {
+            grid-area: left;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .col-c {
+            grid-area: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .col-r {
+            grid-area: right;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .shell {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas: "header header" "left right" "center center";
+            }
+        }
+
+        @media (max-width: 720px) {
+            .shell {
+                grid-template-columns: 1fr;
+                grid-template-areas: "header" "left" "center" "right";
+            }
+        }
+
+        /* ── PANELS ──────────────────────────────────────────────── */
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--rim);
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+        .card-title {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        /* ── HEADER ──────────────────────────────────────────────── */
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-title {
+            font-family: var(--mono);
+            font-size: clamp(16px, 2vw, 22px);
+            font-weight: 200;
+            color: var(--text);
+        }
+
+        .header-sub {
+            font-size: 12.5px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(61, 127, 255, 0.12);
+            border: 1px solid rgba(61, 127, 255, 0.3);
+            color: var(--accent);
+            border-radius: 6px;
+            padding: 3px 9px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        .kpi-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .kpi {
+            background: var(--surface);
+            border: 1px solid var(--rim);
+            border-radius: 10px;
+            padding: 8px 14px;
+            min-width: 120px;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-family: var(--mono);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .kpi-val {
+            font-family: var(--mono);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 2px;
+        }
+
+        .kpi-val.accent {
+            color: var(--accent);
+        }
+
+        .kpi-val.teal {
+            color: var(--teal);
+        }
+
+        .kpi-val.amber {
+            color: var(--amber);
+        }
+
+        .kpi-val.red {
+            color: var(--red);
+        }
+
+        .kpi-val.green {
+            color: var(--green);
+        }
+
+        /* ── SLIDERS ─────────────────────────────────────────────── */
+        .slider-row {
+            margin-bottom: 12px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 5px;
+        }
+
+        .slider-label {
+            font-size: 11.5px;
+            color: var(--muted);
+        }
+
+        .slider-val {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        input[type=range] {
+            width: 100%;
+            background: var(--rim);
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            border: 2px solid var(--bg);
+            cursor: pointer;
+            transition: transform .15s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        select {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--rim);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-family: var(--sans);
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        /* ── PROBE GRID ──────────────────────────────────────────── */
+        .probe-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .probe-cell {
+            background: var(--surface);
+            border: 1px solid var(--rim);
+            border-radius: 8px;
+            padding: 7px 10px;
+        }
+
+        .probe-cell-label {
+            font-size: 10px;
+            color: var(--muted);
+            font-family: var(--mono);
+            letter-spacing: 0.06em;
+        }
+
+        .probe-cell-val {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 2px;
+        }
+
+        .probe-cell.wide {
+            grid-column: 1 / -1;
+        }
+
+        .probe-cell.wide .probe-cell-val {
+            color: var(--amber);
+            font-size: 15px;
+        }
+
+        /* ── CANVAS ──────────────────────────────────────────────── */
+        #plumeCanvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 10px;
+            cursor: crosshair;
+            border: 1px solid var(--rim);
+        }
+
+        /* ── EQUATION STEPS ──────────────────────────────────────── */
+        .step {
+            border-left: 3px solid var(--rim);
+            padding-left: 12px;
+            margin-bottom: 14px;
+            transition: border-color .2s;
+        }
+
+        .step.on {
+            border-left-color: var(--accent);
+        }
+
+        .step-title {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .step-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+
+        .eq-box {
+            background: var(--surface);
+            border: 1px solid var(--rim);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--text);
+            overflow-x: auto;
+        }
+
+        /* Ensure MathJax SVG inherits a neutral colour */
+        .eq-box svg {
+            fill: var(--text);
+        }
+
+        /* ── TRACE BOXES ─────────────────────────────────────────── */
+        .trace-row {
+            margin-bottom: 8px;
+        }
+
+        .trace-name {
+            font-size: 10px;
+            color: var(--muted);
+            font-family: var(--mono);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+
+        .trace-val {
+            background: var(--surface);
+            border: 1px solid var(--rim);
+            border-radius: 7px;
+            padding: 6px 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--teal);
+            word-break: break-all;
+        }
+
+        /* ── STATUS BADGE ────────────────────────────────────────── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 7px;
+            padding: 4px 12px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        .status-badge.down {
+            background: rgba(34, 199, 135, 0.12);
+            border: 1px solid rgba(34, 199, 135, 0.3);
+            color: var(--green);
+        }
+
+        .status-badge.up {
+            background: rgba(255, 78, 106, 0.12);
+            border: 1px solid rgba(255, 78, 106, 0.3);
+            color: var(--red);
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .dot.green {
+            background: var(--green);
+        }
+
+        .dot.red {
+            background: var(--red);
+        }
+
+        /* ── LEGEND ──────────────────────────────────────────────── */
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ── DIVIDER ─────────────────────────────────────────────── */
+        hr {
+            border: none;
+            border-top: 1px solid var(--rim);
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="shell">
+
+        <!-- ══════════════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════════════ -->
+        <header class="card">
+            <div class="header-inner">
+                <div class="header-title">Atmospheric Dispersion Dashboard</div>
+                <div class="kpi-row" style="flex-wrap:wrap;">
+                    <div class="kpi">
+                        <div class="kpi-label">T<sub>ij</sub> [µg·m⁻³ / g·s⁻¹]</div>
+                        <div class="kpi-val accent" id="kpiT">—</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-label">Status</div>
+                        <div id="kpiStatusWrap">
+                            <div class="kpi-val" id="kpiStatus">—</div>
+                        </div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-label">Stability class</div>
+                        <div class="kpi-val teal" id="kpiStab">B</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ══════════════════════════════════════════════════════════
+     LEFT COLUMN
+═══════════════════════════════════════════════════════════ -->
+        <aside class="col-l">
+
+            <!-- INPUTS -->
+            <div class="card">
+                <div class="card-title">Parameters</div>
+
+                <div class="slider-row">
+                    <div class="slider-header">
+                        <span class="slider-label">Emission rate Q</span>
+                        <span class="slider-val" id="val-q">100 g/s</span>
+                    </div>
+                    <input type="range" id="param-q" min="10" max="500" value="100">
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-header">
+                        <span class="slider-label">Stack height H</span>
+                        <span class="slider-val" id="val-h">20 m</span>
+                    </div>
+                    <input type="range" id="param-h" min="0" max="150" value="20">
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-header">
+                        <span class="slider-label">Wind speed u</span>
+                        <span class="slider-val" id="val-u">3.5 m/s</span>
+                    </div>
+                    <input type="range" id="param-u" min="0.5" max="15" step="0.5" value="3.5">
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-header">
+                        <span class="slider-label">Wind direction (from)</span>
+                        <span class="slider-val" id="val-wd">225° SW</span>
+                    </div>
+                    <input type="range" id="param-wd" min="0" max="359" value="225">
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;">0° = from North · 90° = from East ·
+                        225° = from SW</div>
+                </div>
+
+                <div class="slider-row">
+                    <div class="slider-header">
+                        <span class="slider-label">Atmospheric stability</span>
+                    </div>
+                    <select id="param-stability">
+                        <option value="A">A — Very unstable (strong sun, light wind)</option>
+                        <option value="B" selected>B — Unstable</option>
+                        <option value="C">C — Slightly unstable</option>
+                        <option value="D">D — Neutral</option>
+                        <option value="E">E — Slightly stable</option>
+                        <option value="F">F — Stable (night, calm)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- RECEPTOR PROBE -->
+            <div class="card">
+                <div class="card-title">Receptor probe <span
+                        style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0">(click
+                        map)</span></div>
+                <div class="probe-grid">
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">Distance d</div>
+                        <div class="probe-cell-val" id="probe-dist">—</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">Bearing θ</div>
+                        <div class="probe-cell-val" id="probe-bearing">—</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">Downwind x</div>
+                        <div class="probe-cell-val" id="probe-x">—</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">Crosswind y</div>
+                        <div class="probe-cell-val" id="probe-y">—</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">σ<sub>y</sub></div>
+                        <div class="probe-cell-val" id="probe-sy">—</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">σ<sub>z</sub></div>
+                        <div class="probe-cell-val" id="probe-sz">—</div>
+                    </div>
+                    <div class="probe-cell wide">
+                        <div class="probe-cell-label">Concentration at receptor</div>
+                        <div class="probe-cell-val" id="probe-c">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEGEND -->
+            <div class="card">
+                <div class="card-title">Legend</div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#00d4aa"></div>Emission source
+                </div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#f5a623"></div>Receptor sensor (click to move)
+                </div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#3d7fff"></div>Wind vector (length ∝ speed)
+                </div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#22c787"></div>Downwind axis (plume centre)
+                </div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#f5a623;opacity:.6"></div>Crosswind axis
+                </div>
+                <div class="legend-row">
+                    <div class="swatch" style="background:#ff4e6a"></div>Upwind — T = 0
+                </div>
+                <div class="legend-row">
+                    <div class="swatch"
+                        style="background:rgba(61,127,255,0.5);border-radius:2px;width:18px;height:10px"></div>Plume
+                    concentration field
+                </div>
+                <hr>
+                <div style="font-size:11.5px;color:var(--muted);line-height:1.6">
+                    <strong style="color:var(--text)">PG coefficients</strong> follow Turner (EPA 1970).<br>
+                    σ<sub>y</sub> = a<sub>y</sub>·x<sup>b<sub>y</sub></sup>, σ<sub>z</sub> =
+                    a<sub>z</sub>·x<sup>b<sub>z</sub></sup><br>
+                    Stack height H = 20 m default (urban proxy).
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ══════════════════════════════════════════════════════════
+     CENTRE COLUMN
+═══════════════════════════════════════════════════════════ -->
+        <main class="col-c">
+            <div class="card">
+                <div
+                    style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                    <div class="card-title" style="margin:0">Main map — 3 km × 2 km grid</div>
+                    <div id="statusBadge" class="status-badge down">
+                        <div class="dot green"></div>DOWNWIND
+                    </div>
+                </div>
+                <canvas id="plumeCanvas" width="900" height="580"></canvas>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;">
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">Scale</div>
+                        <div class="probe-cell-val" style="font-size:11px">3 km × 2 km</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">x = d·cos(Δθ)</div>
+                        <div class="probe-cell-val" style="font-size:11px">Downwind</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">y = d·sin(Δθ)</div>
+                        <div class="probe-cell-val" style="font-size:11px">Crosswind</div>
+                    </div>
+                    <div class="probe-cell">
+                        <div class="probe-cell-label">x ≤ 0</div>
+                        <div class="probe-cell-val" style="font-size:11px;color:var(--red)">T = 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HOW THE AXES WORK -->
+            <div class="card">
+                <div class="card-title">Wind-frame projection</div>
+                <div
+                    style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.55;">
+                    <div class="eq-box">
+                        <strong style="color:var(--text)">Earth → wind frame</strong><br>
+                        Δθ = windDir − bearing(src→rec)<br>
+                        x = d · cos(Δθ) ← downwind<br>
+                        y = d · sin(Δθ) ← crosswind
+                    </div>
+                    <div class="eq-box">
+                        <strong style="color:var(--text)">Block rule</strong><br>
+                        If x ≤ 0, receptor is upwind.<br>
+                        Plume cannot travel backward.<br>
+                        → T<sub>ij</sub> = 0 immediately.
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ══════════════════════════════════════════════════════════
+     RIGHT COLUMN
+═══════════════════════════════════════════════════════════ -->
+        <aside class="col-r">
+
+            <!-- EQUATION STEPS -->
+            <div class="card">
+                <div class="card-title">Derivation — step by step</div>
+
+                <div class="step on">
+                    <div class="step-title">Step 1 — Distance &amp; Bearing</div>
+                    <div class="step-desc">Haversine great-circle distance and initial bearing from source to receptor.
+                    </div>
+                    <div class="eq-box">
+                        $d =
+                        2R\arcsin\!\sqrt{\sin^2\!\tfrac{\Delta\varphi}{2}+\cos\varphi_1\cos\varphi_2\sin^2\!\tfrac{\Delta\lambda}{2}}$
+                    </div>
+                </div>
+
+                <div class="step on">
+                    <div class="step-title">Step 2 — Wind-frame projection</div>
+                    <div class="step-desc">Rotate source→receptor vector into downwind / crosswind axes using the angle
+                        between wind direction and bearing.</div>
+                    <div class="eq-box">
+                        $x = d\cos(\theta_w - \theta_b),\quad y = d\sin(\theta_w - \theta_b)$
+                    </div>
+                </div>
+
+                <div class="step on">
+                    <div class="step-title">Step 3 — Dispersion widths (Pasquill-Gifford)</div>
+                    <div class="step-desc">Power-law parameterisation; coefficients depend on stability class (Turner,
+                        EPA 1970).</div>
+                    <div class="eq-box">
+                        $\sigma_y = a_y\,x^{b_y},\qquad \sigma_z = \min\!\left(a_z\,x^{b_z},\;500\right)$
+                    </div>
+                </div>
+
+                <div class="step on">
+                    <div class="step-title">Step 4 — Ground-level Gaussian plume</div>
+                    <div class="step-desc">Ground reflection (image source) simplifies the vertical term to
+                        2exp(−H²/2σ<sub>z</sub>²) / (2π…) → the factor of π.</div>
+                    <div class="eq-box">
+                        $T_{ij} =
+                        \frac{1}{\pi\,u\,\sigma_y\sigma_z}\exp\!\left(-\frac{y^2}{2\sigma_y^2}\right)\exp\!\left(-\frac{H^2}{2\sigma_z^2}\right)\times
+                        10^6$
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE FORMULA TRACE -->
+            <div class="card">
+                <div class="card-title">Live formula trace</div>
+                <div class="trace-row">
+                    <div class="trace-name">Projection</div>
+                    <div class="trace-val" id="trace-proj">—</div>
+                </div>
+                <div class="trace-row">
+                    <div class="trace-name">Dispersion widths</div>
+                    <div class="trace-val" id="trace-sigmas">—</div>
+                </div>
+                <div class="trace-row">
+                    <div class="trace-name">Gaussian terms</div>
+                    <div class="trace-val" id="trace-terms">—</div>
+                </div>
+                <div class="trace-row">
+                    <div class="trace-name">Final T<sub>ij</sub></div>
+                    <div class="trace-val" id="trace-final" style="color:var(--amber)">—</div>
+                </div>
+            </div>
+
+            <!-- PG TABLE -->
+            <div class="card">
+                <div class="card-title">PG coefficient table <span style="font-size:9px;color:var(--muted)">(Turner
+                        1970)</span></div>
+                <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">
+                    <thead>
+                        <tr style="color:var(--muted);">
+                            <th style="text-align:left;padding:3px 6px;">Class</th>
+                            <th style="padding:3px 6px;">a_y</th>
+                            <th style="padding:3px 6px;">b_y</th>
+                            <th style="padding:3px 6px;">a_z</th>
+                            <th style="padding:3px 6px;">b_z</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pgTable"></tbody>
+                </table>
+            </div>
+
+            <!-- READING GUIDE -->
+            <div class="card">
+                <div class="card-title">Interpretation guide</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+                    <p style="margin-bottom:7px;"><strong style="color:var(--text)">High wind speed</strong> → larger
+                        denominator → lower T. Plume is diluted faster along the downwind axis.</p>
+                    <p style="margin-bottom:7px;"><strong style="color:var(--text)">Unstable (A/B)</strong> → large σ_y,
+                        σ_z → wide plume but lower peak concentration on centreline.</p>
+                    <p style="margin-bottom:7px;"><strong style="color:var(--text)">Stable (E/F)</strong> → narrow
+                        plume, high centreline T but falls off sharply sideways.</p>
+                    <p style="margin-bottom:7px;"><strong style="color:var(--text)">Stack height H</strong> → vertical
+                        Gaussian exp(−H²/2σ_z²) attenuates ground-level concentration. Higher stack = lower T at ground.
+                    </p>
+                    <p><strong style="color:var(--red)">Upwind receptor</strong> → x ≤ 0 → T = 0 regardless of distance.
+                        Physical necessity: steady-state plume cannot travel upstream.</p>
+                </div>
+            </div>
+
+        </aside>
+
+    </div><!-- end .shell -->
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        //  CONSTANTS
+        // ═══════════════════════════════════════════════════════════
+        const CANVAS_W = 900;   // logical canvas pixels
+        const CANVAS_H = 580;
+        const M_PER_PX = 3000 / CANVAS_W;   // 3 km wide → metres per pixel
+        const SRC_PX = { x: 230, y: 290 };  // source pixel position (centre-left)
+
+        // PG coefficients — Turner (EPA 1970) — same table as the Python notebook
+        const PG = {
+            A: { ay: 0.36, by: 0.90, az: 0.00023, bz: 2.10 },
+            B: { ay: 0.25, by: 0.90, az: 0.058, bz: 1.09 },
+            C: { ay: 0.19, by: 0.90, az: 0.11, bz: 0.91 },
+            D: { ay: 0.13, by: 0.90, az: 0.57, bz: 0.58 },
+            E: { ay: 0.096, by: 0.90, az: 0.85, bz: 0.47 },
+            F: { ay: 0.063, by: 0.90, az: 0.77, bz: 0.42 },
+        };
+
+        const COMPASS8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+        // ═══════════════════════════════════════════════════════════
+        //  POPULATE PG TABLE
+        // ═══════════════════════════════════════════════════════════
+        const tbodyEl = document.getElementById('pgTable');
+        for (const [cls, c] of Object.entries(PG)) {
+            const tr = document.createElement('tr');
+            tr.id = `pgrow-${cls}`;
+            tr.style.borderTop = '1px solid #252d45';
+            tr.innerHTML = `
+    <td style="padding:4px 6px;color:#3d7fff;font-weight:700">${cls}</td>
+    <td style="padding:4px 6px;text-align:center">${c.ay}</td>
+    <td style="padding:4px 6px;text-align:center">${c.by}</td>
+    <td style="padding:4px 6px;text-align:center">${c.az}</td>
+    <td style="padding:4px 6px;text-align:center">${c.bz}</td>`;
+            tbodyEl.appendChild(tr);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  STATE
+        // ═══════════════════════════════════════════════════════════
+        const state = { receptor: { x: 640, y: 200 } };
+
+        // ═══════════════════════════════════════════════════════════
+        //  HELPERS
+        // ═══════════════════════════════════════════════════════════
+        function compass(deg) {
+            return COMPASS8[Math.round(((deg % 360 + 360) % 360) / 45) % 8];
+        }
+
+        // σ_y and σ_z (metres) for downwind distance x (metres) and stability class
+        function sigmaYZ(x_m, cls) {
+            const c = PG[cls];
+            const sy = c.ay * Math.pow(x_m, c.by);
+            const sz = Math.min(c.az * Math.pow(x_m, c.bz), 500);
+            return [sy, sz];
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  WIND-FRAME UNIT VECTORS
+        //
+        //  windDeg is direction the wind is COMING FROM (meteorological convention).
+        //  The plume travels IN the opposite direction:
+        //    toRad = (windDeg + 180) mod 360 × (π/180)
+        //
+        //  Canvas coordinates: x → East, y → DOWN (South).
+        //  North in canvas = (0, -1).
+        //
+        //  Unit vector pointing DOWNWIND (from source toward receptor):
+        //    u_down = ( sin(toRad), -cos(toRad) )  [canvas coords]
+        //
+        //  Verification:
+        //    windDeg=0  (from N) → toRad=180° → (sin180, -cos180) = (0,+1) = South in canvas ✓
+        //    windDeg=270(from W) → toRad=90°  → (sin90,  -cos90 ) = (1, 0) = East  in canvas ✓
+        //    windDeg=180(from S) → toRad=0°   → (0, -1)           = North in canvas ✓
+        //
+        //  Unit vector CROSSWIND (90° anticlockwise of downwind):
+        //    u_cross = ( cos(toRad), sin(toRad) )
+        // ═══════════════════════════════════════════════════════════
+        function windUnitVectors(windDeg) {
+            const toRad = ((windDeg + 180) % 360) * Math.PI / 180;
+            const ux = Math.sin(toRad);   // downwind x (canvas)
+            const uy = -Math.cos(toRad);  // downwind y (canvas, positive = south/down)
+            const cx = Math.cos(toRad);   // crosswind x
+            const cy = Math.sin(toRad);   // crosswind y
+            return { ux, uy, cx, cy, toRad };
+        }
+
+        // Project (dx_px, dy_px) onto downwind and crosswind axes [metres]
+        function projectWindFrame(dx_px, dy_px, windDeg) {
+            const { ux, uy, cx, cy } = windUnitVectors(windDeg);
+            const dx_m = dx_px * M_PER_PX;
+            const dy_m = dy_px * M_PER_PX;
+            const xDown = dx_m * ux + dy_m * uy;   // dot product with downwind unit
+            const yCross = dx_m * cx + dy_m * cy;   // dot product with crosswind unit
+            return { xDown, yCross };
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  CONCENTRATION FIELD (for background rendering)
+        // ═══════════════════════════════════════════════════════════
+        function concentration(xDown_m, yCross_m, Q, u, H, cls) {
+            if (xDown_m <= 1) return 0;
+            const [sy, sz] = sigmaYZ(xDown_m, cls);
+            if (sy < 1e-6 || sz < 1e-6) return 0;
+            const c_dilution = 1 / (Math.PI * u * sy * sz);
+            const c_cross = Math.exp(-(yCross_m * yCross_m) / (2 * sy * sy));
+            const c_vert = Math.exp(-(H * H) / (2 * sz * sz));
+            return c_dilution * c_cross * c_vert * Q * 1e6;  // µg/m³
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  DRAW HELPERS
+        // ═══════════════════════════════════════════════════════════
+        function arrow(ctx, x1, y1, x2, y2, col, lw = 2.5, headLen = 11) {
+            const ang = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save();
+            ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(ang - Math.PI / 6), y2 - headLen * Math.sin(ang - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(ang + Math.PI / 6), y2 - headLen * Math.sin(ang + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+            ctx.restore();
+        }
+
+        function label(ctx, text, x, y, fg = '#e8edf8', bg = 'rgba(19,24,41,0.88)') {
+            ctx.save();
+            ctx.font = '700 11px "Space Mono", monospace';
+            const w = ctx.measureText(text).width + 14;
+            const h = 20;
+            ctx.fillStyle = bg;
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(x, y - h + 3, w, h, 5); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = fg;
+            ctx.fillText(text, x + 7, y - 4);
+            ctx.restore();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  MAIN DRAW
+        // ═══════════════════════════════════════════════════════════
+        const canvas = document.getElementById('plumeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            const Q = parseFloat(document.getElementById('param-q').value);
+            const H = parseFloat(document.getElementById('param-h').value);
+            const u = parseFloat(document.getElementById('param-u').value);
+            const wd = parseFloat(document.getElementById('param-wd').value);
+            const cls = document.getElementById('param-stability').value;
+
+            // Update readout labels
+            document.getElementById('val-q').textContent = `${Q} g/s`;
+            document.getElementById('val-h').textContent = `${H} m`;
+            document.getElementById('val-u').textContent = `${u} m/s`;
+            document.getElementById('val-wd').textContent = `${wd}°  ${compass(wd)}`;
+            document.getElementById('kpiStab').textContent = cls;
+
+            // Highlight PG table row
+            Object.keys(PG).forEach(c => {
+                const row = document.getElementById(`pgrow-${c}`);
+                row.style.background = c === cls ? 'rgba(61,127,255,0.12)' : '';
+                row.style.color = c === cls ? '#3d7fff' : '';
+            });
+
+            const { ux, uy, cx, cy } = windUnitVectors(wd);
+
+            // ── Background (grid) ──
+            ctx.fillStyle = '#0e1120';
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.strokeStyle = 'rgba(37,45,69,0.6)'; ctx.lineWidth = 1;
+            for (let x = 0; x < CANVAS_W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke(); }
+            for (let y = 0; y < CANVAS_H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke(); }
+
+            // ── Plume concentration field ──
+            // ── Compass rose (top-right corner) ──
+            const CX = CANVAS_W - 60, CY = 60, CR = 30;  // centre x, centre y, radius
+            const dirs = [
+                { label: 'N', dx: 0, dy: -1 },
+                { label: 'S', dx: 0, dy: 1 },
+                { label: 'E', dx: 1, dy: 0 },
+                { label: 'W', dx: -1, dy: 0 },
+            ];
+            dirs.forEach(({ label, dx, dy }) => {
+                arrow(ctx,
+                    CX + dx * 10,          // start slightly away from centre
+                    CY + dy * 10,
+                    CX + dx * CR,          // end at radius edge
+                    CY + dy * CR,
+                    '#6b7a9e', 1.5, 7
+                );
+                ctx.save();
+                ctx.fillStyle = '#e8edf8';
+                ctx.font = '700 11px "Space Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, CX + dx * (CR + 11), CY + dy * (CR + 11));
+                ctx.restore();
+            });
+            // centre dot
+            ctx.beginPath();
+            ctx.arc(CX, CY, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#6b7a9e';
+            ctx.fill();
+            const imgData = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+            const d = imgData.data;
+            const step = 2;  // render every Nth pixel for speed
+            for (let py = 0; py < CANVAS_H; py += step) {
+                for (let px = 0; px < CANVAS_W; px += step) {
+                    const dpx = px - SRC_PX.x;
+                    const dpy = py - SRC_PX.y;
+                    const { xDown, yCross } = projectWindFrame(dpx, dpy, wd);
+                    if (xDown <= 0) continue;
+                    const conc = concentration(xDown, yCross, Q, u, H, cls);
+                    if (conc < 0.5) continue;
+                    const t = Math.min(conc / 300, 1);
+                    const r = Math.floor(30 + 80 * t);
+                    const g = Math.floor(80 + 100 * t);
+                    const b = Math.floor(220 - 80 * t);
+                    const a = Math.floor(20 + 200 * t);
+                    for (let sy = 0; sy < step && py + sy < CANVAS_H; sy++) {
+                        for (let sx = 0; sx < step && px + sx < CANVAS_W; sx++) {
+                            const i = ((py + sy) * CANVAS_W + (px + sx)) * 4;
+                            d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a;
+                        }
+                    }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+
+            // ── Downwind centre line ──
+            ctx.save();
+            ctx.strokeStyle = 'rgba(34,199,135,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([8, 5]);
+            ctx.beginPath();
+            ctx.moveTo(SRC_PX.x, SRC_PX.y);
+            ctx.lineTo(SRC_PX.x + ux * 400, SRC_PX.y + uy * 400);
+            ctx.stroke();
+            ctx.restore();
+            arrow(ctx, SRC_PX.x, SRC_PX.y, SRC_PX.x + ux * 400, SRC_PX.y + uy * 400, '#22c787', 2.5, 10);
+            label(ctx, 'Downwind x', SRC_PX.x + ux * 280 + 8, SRC_PX.y + uy * 280 - 4, '#22c787', 'rgba(0,0,0,0.7)');
+
+            // ── Crosswind axis ──
+            arrow(ctx, SRC_PX.x, SRC_PX.y, SRC_PX.x + cx * 140, SRC_PX.y + cy * 140, '#f5a623', 2, 9);
+            label(ctx, 'Crosswind y', SRC_PX.x + cx * 100 + 8, SRC_PX.y + cy * 100 - 4, '#f5a623', 'rgba(0,0,0,0.7)');
+
+            // ── Wind vector (NW corner) ──
+            const wLen = 45 + u * 8;
+            const wx1 = 80, wy1 = 80;
+            const wx2 = wx1 + ux * wLen, wy2 = wy1 + uy * wLen;
+            // Ghost lines
+            ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#3d7fff'; ctx.lineWidth = 1;
+            for (let k = -2; k <= 2; k++) {
+                const off = k * 18;
+                arrow(ctx, wx1 + cx * off, wy1 + cy * off, wx2 + cx * off, wy2 + cy * off, '#3d7fff', 1, 6);
+            }
+            ctx.restore();
+            arrow(ctx, wx1, wy1, wx2, wy2, '#3d7fff', 3, 11);
+            label(ctx, `Wind from ${wd}° ${compass(wd)}  u=${u} m/s`, wx1, wy1 - 10, '#3d7fff', 'rgba(0,0,0,0.7)');
+
+            // ── Source dot ──
+            ctx.beginPath();
+            ctx.arc(SRC_PX.x, SRC_PX.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#00d4aa'; ctx.fill();
+            ctx.strokeStyle = '#0e1120'; ctx.lineWidth = 2.5; ctx.stroke();
+            label(ctx, 'Emission source', SRC_PX.x + 14, SRC_PX.y - 14, '#00d4aa');
+
+            // ── Receptor ──
+            // ── Receptor (compute values first) ──
+            const rx = state.receptor.x, ry = state.receptor.y;
+            const dpx = rx - SRC_PX.x, dpy = ry - SRC_PX.y;
+            const dist_m = Math.sqrt((dpx * M_PER_PX) ** 2 + (dpy * M_PER_PX) ** 2);
+            const bearingRad = Math.atan2(dpx * M_PER_PX, -dpy * M_PER_PX);
+            const bearingDeg = ((bearingRad * 180 / Math.PI) + 360) % 360;
+            const { xDown, yCross } = projectWindFrame(dpx, dpy, wd);
+            const downwind = xDown > 0;
+            const arcR = 55;   // ← ADD THIS LINE
+
+            // ── Draw arcs FIRST (underneath everything) ──
+
+            // ── Draw arcs FIRST (underneath everything) ──
+
+            // N-S reference line through source
+            ctx.save();
+            ctx.strokeStyle = 'rgba(200,190,220,0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(SRC_PX.x, SRC_PX.y - 100);
+            ctx.lineTo(SRC_PX.x, SRC_PX.y + 100);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // Use normalized versions so arcs always sweep clockwise from North
+            const bearingRadNorm = bearingDeg * Math.PI / 180;   // always 0 → 2π
+            const windRadNorm = wd * Math.PI / 180;            // always 0 → 2π
+
+            // Blue arc: North → bearing
+            ctx.save();
+            ctx.strokeStyle = '#3d7fff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(SRC_PX.x, SRC_PX.y, arcR,
+                -Math.PI / 2,
+                -Math.PI / 2 + bearingRadNorm,
+                false);
+            ctx.stroke();
+            ctx.restore();
+
+            const bearMid = -Math.PI / 2 + bearingRadNorm / 2;
+            ctx.save();
+            ctx.fillStyle = '#3d7fff';
+            ctx.font = '700 10px "Space Mono", monospace';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`θb=${bearingDeg.toFixed(0)}°`,
+                SRC_PX.x + Math.cos(bearMid) * (arcR + 18),
+                SRC_PX.y + Math.sin(bearMid) * (arcR + 18));
+            ctx.restore();
+
+            // Amber arc: North → wind FROM direction
+            const windArcR = 80;
+            ctx.save();
+            ctx.strokeStyle = '#f5a623';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.arc(SRC_PX.x, SRC_PX.y, windArcR,
+                -Math.PI / 2,
+                -Math.PI / 2 + windRadNorm,
+                false);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            const windMid = -Math.PI / 2 + windRadNorm / 2;
+            ctx.save();
+            ctx.fillStyle = '#f5a623';
+            ctx.font = '700 10px "Space Mono", monospace';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`θw=${wd.toFixed(0)}°`,
+                SRC_PX.x + Math.cos(windMid) * (windArcR + 18),
+                SRC_PX.y + Math.sin(windMid) * (windArcR + 18));
+            ctx.restore();
+
+            // Green Δθ label
+            const deltaMid = -Math.PI / 2 + (bearingRadNorm + windRadNorm) / 2;
+            ctx.save();
+            ctx.fillStyle = '#22c787';
+            ctx.font = '700 10px "Space Mono", monospace';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`Δθ=${(wd - bearingDeg).toFixed(0)}°`,
+                SRC_PX.x + Math.cos(deltaMid) * 105,
+                SRC_PX.y + Math.sin(deltaMid) * 105);
+            ctx.restore();
+
+            // ── NOW draw receptor on top (stays clickable) ──
+            const recCol = downwind ? '#f5a623' : '#ff4e6a';
+            ctx.save();
+            ctx.strokeStyle = recCol; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(rx - 13, ry); ctx.lineTo(rx + 13, ry);
+            ctx.moveTo(rx, ry - 13); ctx.lineTo(rx, ry + 13); ctx.stroke();
+            ctx.beginPath(); ctx.arc(rx, ry, 5, 0, Math.PI * 2);
+            ctx.fillStyle = recCol; ctx.fill(); ctx.strokeStyle = '#0e1120'; ctx.stroke();
+            ctx.restore();
+            label(ctx, 'Receptor', rx + 14, ry - 10, recCol);
+
+            // ── Status badge ──
+            const badge = document.getElementById('statusBadge');
+            if (downwind) {
+                badge.className = 'status-badge down';
+                badge.innerHTML = '<div class="dot green"></div>DOWNWIND';
+            } else {
+                badge.className = 'status-badge up';
+                badge.innerHTML = '<div class="dot red"></div>UPWIND  —  T = 0';
+            }
+
+            // ── Decomposition overlay (bottom-left) ──
+            ctx.save();
+            ctx.fillStyle = 'rgba(13,17,30,0.9)';
+            ctx.strokeStyle = 'rgba(61,127,255,0.25)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(12, CANVAS_H - 140, 290, 126, 10); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#6b7a9e'; ctx.font = '600 10px "Space Mono"'; ctx.fillText('LIVE DECOMPOSITION', 22, CANVAS_H - 118);
+            ctx.fillStyle = '#e8edf8'; ctx.font = '500 12px "Space Mono"';
+            ctx.fillText(`d = ${dist_m.toFixed(0)} m`, 22, CANVAS_H - 97);
+            ctx.fillText(`bearing = ${bearingDeg.toFixed(1)}°  (${compass(bearingDeg)})`, 22, CANVAS_H - 77);
+            ctx.fillText(`Δθ = ${wd}° − ${bearingDeg.toFixed(1)}° = ${(wd - bearingDeg).toFixed(1)}°`, 22, CANVAS_H - 57);
+            if (downwind) {
+                ctx.fillText(`x↓ = ${xDown.toFixed(0)} m   y→ = ${yCross.toFixed(0)} m`, 22, CANVAS_H - 37);
+            } else {
+                ctx.fillStyle = '#ff4e6a';
+                ctx.fillText(`x↓ = ${xDown.toFixed(0)} m  ← UPWIND → T = 0`, 22, CANVAS_H - 37);
+            }
+            ctx.restore();
+
+            // ── Update probe / KPI / trace panels ──
+            document.getElementById('probe-dist').textContent = `${dist_m.toFixed(1)} m`;
+            document.getElementById('probe-bearing').textContent = `${bearingDeg.toFixed(1)}° ${compass(bearingDeg)}`;
+            document.getElementById('kpiT').textContent = '—';
+
+            if (!downwind) {
+                document.getElementById('probe-x').textContent = `${xDown.toFixed(1)} m  ✗`;
+                document.getElementById('probe-y').textContent = '—';
+                document.getElementById('probe-sy').textContent = '—';
+                document.getElementById('probe-sz').textContent = '—';
+                document.getElementById('probe-c').textContent = '0.00  µg/m³';
+                document.getElementById('trace-proj').textContent = `x = ${xDown.toFixed(1)} m ≤ 0 → upwind → T = 0`;
+                document.getElementById('trace-sigmas').textContent = 'not evaluated';
+                document.getElementById('trace-terms').textContent = 'dilution=0, cross=0, vert=0';
+                document.getElementById('trace-final').textContent = 'Tᵢⱼ = 0';
+                document.getElementById('kpiStatus').textContent = 'Upwind';
+                document.getElementById('kpiStatus').style.color = '#ff4e6a';
+                return;
+            }
+
+            const [sy, sz] = sigmaYZ(xDown, cls);
+            const dilution = 1 / (Math.PI * u * sy * sz);
+            const c_cross = Math.exp(-(yCross * yCross) / (2 * sy * sy));
+            const c_vert = Math.exp(-(H * H) / (2 * sz * sz));
+            const Traw = dilution * c_cross * c_vert;
+            const Tij = Traw * 1e6;   // µg·m⁻³ per g·s⁻¹
+            const finalC = Tij * Q;
+
+            document.getElementById('probe-x').textContent = `${xDown.toFixed(1)} m`;
+            document.getElementById('probe-y').textContent = `${yCross.toFixed(1)} m`;
+            document.getElementById('probe-sy').textContent = `${sy.toFixed(1)} m`;
+            document.getElementById('probe-sz').textContent = `${sz.toFixed(1)} m`;
+            document.getElementById('probe-c').textContent = `${finalC.toFixed(2)} µg/m³`;
+            document.getElementById('kpiT').textContent = Tij.toFixed(4);
+            document.getElementById('kpiStatus').textContent = 'Downwind';
+            document.getElementById('kpiStatus').style.color = '#22c787';
+
+            document.getElementById('trace-proj').textContent =
+                `d=${dist_m.toFixed(0)} m  Δθ=${(wd - bearingDeg).toFixed(1)}°  →  x=${xDown.toFixed(0)} m  y=${yCross.toFixed(0)} m`;
+            document.getElementById('trace-sigmas').textContent =
+                `σy=${sy.toFixed(2)} m   σz=${sz.toFixed(2)} m   (class ${cls})`;
+            document.getElementById('trace-terms').textContent =
+                `1/(π·u·σy·σz)=${dilution.toExponential(3)}   exp(-y²/2σy²)=${c_cross.toFixed(5)}   exp(-H²/2σz²)=${c_vert.toFixed(5)}`;
+            document.getElementById('trace-final').textContent =
+                `Traw=${Traw.toExponential(4)} s/m³ → Tᵢⱼ=${Tij.toFixed(4)} µg·m⁻³·g⁻¹·s`;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  EVENTS
+        // ═══════════════════════════════════════════════════════════
+        function canvasPt(e) {
+            const r = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - r.left) * (CANVAS_W / r.width),
+                y: (e.clientY - r.top) * (CANVAS_H / r.height),
+            };
+        }
+        canvas.addEventListener('mousedown', e => {
+            const p = canvasPt(e);
+            state.receptor = { x: p.x, y: p.y };
+            draw();
+        });
+        canvas.addEventListener('mousemove', e => {
+            if (e.buttons !== 1) return;
+            const p = canvasPt(e);
+            state.receptor = { x: p.x, y: p.y };
+            draw();
+        });
+        ['param-q', 'param-h', 'param-u', 'param-wd', 'param-stability'].forEach(id => {
+            document.getElementById(id).addEventListener('input', draw);
+        });
+
+        // Initial render
+        draw();
+        if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+    </script>
+</body>
+
+</html>
