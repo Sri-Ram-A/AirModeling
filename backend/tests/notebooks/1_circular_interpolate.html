@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circular Interpolation Visualizer</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --panel2:#0f172a;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --grid:#243044;
+      --accent:#38bdf8;
+      --ok:#34d399;
+      --warn:#f59e0b;
+      --bad:#f87171;
+      --line:#64748b;
+      --cyan:#22d3ee;
+      --violet:#a78bfa;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px;
+      background: radial-gradient(circle at top, #12203a 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Tahoma, Arial, sans-serif;
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      color: #dbeafe;
+      letter-spacing: 0.2px;
+    }
+
+    .sub {
+      margin: 0 0 22px;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 980px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(17,26,46,0.95), rgba(10,16,30,0.95));
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 18px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      color: #dbeafe;
+    }
+
+    .control {
+      margin-bottom: 16px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      align-items: baseline;
+    }
+
+    label {
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .val {
+      color: var(--accent);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .metric {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 72px;
+    }
+
+    .metric .k {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .metric .v {
+      font-size: 18px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .v.good { color: var(--ok); }
+    .v.warn { color: var(--warn); }
+    .v.bad  { color: var(--bad); }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 12px;
+    }
+
+    .viz {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .svg-card {
+      background: linear-gradient(180deg, rgba(17,26,46,0.96), rgba(10,16,30,0.96));
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+    }
+
+    .svg-head {
+      padding: 14px 16px 0;
+    }
+
+    .svg-head h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      color: #dbeafe;
+    }
+
+    .svg-head p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      background:
+        linear-gradient(transparent 0 0),
+        radial-gradient(circle at center, rgba(56,189,248,0.06), transparent 55%);
+    }
+
+    .table-card {
+      background: linear-gradient(180deg, rgba(17,26,46,0.96), rgba(10,16,30,0.96));
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(148,163,184,0.14);
+      vertical-align: middle;
+    }
+
+    th {
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    td {
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.28);
+      color: #bae6fd;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      padding: 0 16px 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: -1px;
+    }
+
+    .l1::before { background: #38bdf8; }
+    .l2::before { background: #f59e0b; }
+    .l3::before { background: #34d399; }
+    .l4::before { background: #cbd5e1; }
+
+    @media (max-width: 1060px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Circular Interpolation Visualizer</h1>
+  <p class="sub">
+    This demo shows why wind direction and other circular variables must not be interpolated as ordinary numbers.
+    The left side computes the interpolation directly on the circle using <span class="pill">sin/cos</span>.
+    The right side visualizes the vectors, the midpoint, and the imputed values across the gap.
+  </p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Controls</h2>
+
+      <div class="control">
+        <div class="label-row">
+          <label for="a1">Observed angle A</label>
+          <div class="val"><span id="a1-val">350</span>°</div>
+        </div>
+        <input id="a1" type="range" min="0" max="360" value="350" />
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <label for="a2">Observed angle B</label>
+          <div class="val"><span id="a2-val">10</span>°</div>
+        </div>
+        <input id="a2" type="range" min="0" max="360" value="10" />
+      </div>
+
+      <div class="control">
+        <div class="label-row">
+          <label for="t">Interpolation fraction</label>
+          <div class="val"><span id="t-val">0.50</span></div>
+        </div>
+        <input id="t" type="range" min="0" max="1" step="0.01" value="0.5" />
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="k">Naive linear midpoint</div>
+          <div class="v bad" id="naive-out">180.0°</div>
+        </div>
+        <div class="metric">
+          <div class="k">Circular midpoint</div>
+          <div class="v good" id="circ-out">0.0°</div>
+        </div>
+        <div class="metric">
+          <div class="k">Vector X</div>
+          <div class="v" id="x-out">0.966</div>
+        </div>
+        <div class="metric">
+          <div class="k">Vector Y</div>
+          <div class="v" id="y-out">0.000</div>
+        </div>
+      </div>
+
+      <p class="note">
+        The key idea is simple: a direction is not a line on a number axis.
+        It is a point on a circle. So the safe workflow is:
+        angle → radians → unit vector → interpolate X/Y → reconstruct with atan2 → normalize to 0–360°.
+      </p>
+    </div>
+
+    <div class="viz">
+      <div class="svg-card">
+        <div class="svg-head">
+          <h2>Geometry on the unit circle</h2>
+          <p>
+            Blue and orange are the observed directions. Gray is the naive linear midpoint.
+            Green is the circularly interpolated result. The dashed chord shows the X/Y blend.
+          </p>
+        </div>
+
+        <svg id="svg" viewBox="0 0 820 640" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L7,3 z" fill="#38bdf8"></path>
+            </marker>
+            <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L7,3 z" fill="#f59e0b"></path>
+            </marker>
+            <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L7,3 z" fill="#34d399"></path>
+            </marker>
+            <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L7,3 z" fill="#cbd5e1"></path>
+            </marker>
+          </defs>
+
+          <!-- background grid -->
+          <g opacity="0.22" stroke="#243044" stroke-width="1">
+            <line x1="60" y1="80" x2="760" y2="80" />
+            <line x1="60" y1="150" x2="760" y2="150" />
+            <line x1="60" y1="220" x2="760" y2="220" />
+            <line x1="60" y1="290" x2="760" y2="290" />
+            <line x1="60" y1="360" x2="760" y2="360" />
+            <line x1="60" y1="430" x2="760" y2="430" />
+            <line x1="60" y1="500" x2="760" y2="500" />
+            <line x1="60" y1="570" x2="760" y2="570" />
+
+            <line x1="90" y1="40" x2="90" y2="600" />
+            <line x1="190" y1="40" x2="190" y2="600" />
+            <line x1="290" y1="40" x2="290" y2="600" />
+            <line x1="390" y1="40" x2="390" y2="600" />
+            <line x1="490" y1="40" x2="490" y2="600" />
+            <line x1="590" y1="40" x2="590" y2="600" />
+            <line x1="690" y1="40" x2="690" y2="600" />
+          </g>
+
+          <!-- circle and axes -->
+          <g id="main-plot">
+            <circle cx="260" cy="320" r="220" fill="none" stroke="#475569" stroke-width="2"></circle>
+            <line x1="40" y1="320" x2="480" y2="320" stroke="#64748b" stroke-width="2"></line>
+            <line x1="260" y1="100" x2="260" y2="540" stroke="#64748b" stroke-width="2"></line>
+
+            <text x="472" y="314" fill="#cbd5e1" font-size="14">0°</text>
+            <text x="252" y="90" fill="#cbd5e1" font-size="14">90°</text>
+            <text x="28" y="314" fill="#cbd5e1" font-size="14">180°</text>
+            <text x="246" y="560" fill="#cbd5e1" font-size="14">270°</text>
+
+            <text x="250" y="64" fill="#94a3b8" font-size="12">unit circle</text>
+          </g>
+
+          <!-- chord / average segment -->
+          <g id="blend-layer"></g>
+
+          <!-- observed vectors -->
+          <g id="vector-layer"></g>
+
+          <!-- annotations -->
+          <g id="text-layer"></g>
+        </svg>
+
+        <div class="legend">
+          <span class="l1">Observed angle A</span>
+          <span class="l2">Observed angle B</span>
+          <span class="l3">Circular interpolation result</span>
+          <span class="l4">Naive midpoint</span>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <h2 style="margin:0 0 8px;color:#dbeafe;font-size:18px;">Imputation across the gap</h2>
+        <p style="margin:0 0 14px;color:#94a3b8;font-size:13px;line-height:1.5;">
+          This table shows how the missing values would be filled between the two observations.
+          The naive version walks through numeric degrees. The circular version walks through X/Y vectors.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>t</th>
+              <th>Naive angle</th>
+              <th>Circular angle</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="impute-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const elA1 = document.getElementById("a1");
+  const elA2 = document.getElementById("a2");
+  const elT  = document.getElementById("t");
+
+  const outA1 = document.getElementById("a1-val");
+  const outA2 = document.getElementById("a2-val");
+  const outT  = document.getElementById("t-val");
+  const outNaive = document.getElementById("naive-out");
+  const outCirc = document.getElementById("circ-out");
+  const outX = document.getElementById("x-out");
+  const outY = document.getElementById("y-out");
+
+  const blendLayer = document.getElementById("blend-layer");
+  const vectorLayer = document.getElementById("vector-layer");
+  const textLayer   = document.getElementById("text-layer");
+  const imputeTable = document.getElementById("impute-table");
+
+  const CX = 260, CY = 320, R = 220;
+
+  function deg2rad(d) { return d * Math.PI / 180; }
+  function rad2deg(r) { return r * 180 / Math.PI; }
+  function normalize360(d) { return ((d % 360) + 360) % 360; }
+
+  function circularMean(aDeg, bDeg, t) {
+    const a = deg2rad(aDeg);
+    const b = deg2rad(bDeg);
+    const x = (1 - t) * Math.cos(a) + t * Math.cos(b);
+    const y = (1 - t) * Math.sin(a) + t * Math.sin(b);
+    const ang = normalize360(rad2deg(Math.atan2(y, x)));
+    return { ang, x, y };
+  }
+
+  function naiveMean(aDeg, bDeg, t) {
+    return normalize360((1 - t) * aDeg + t * bDeg);
+  }
+
+  function polarToSvg(angleDeg, radius) {
+    const a = deg2rad(angleDeg);
+    const x = CX + radius * Math.cos(a);
+    const y = CY - radius * Math.sin(a);
+    return { x, y };
+  }
+
+  function lineSVG(x1, y1, x2, y2, stroke, width, dash = "", marker = "") {
+    return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"
+      stroke="${stroke}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ""} ${marker ? `marker-end="url(#${marker})"` : ""}></line>`;
+  }
+
+  function circleDot(x, y, fill, stroke = "#0f172a", r = 7) {
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"></circle>`;
+  }
+
+  function label(x, y, text, fill = "#e2e8f0", anchor = "start", size = 14) {
+    return `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" fill="${fill}" font-size="${size}" text-anchor="${anchor}" dominant-baseline="middle">${text}</text>`;
+  }
+
+  function arcPath(startDeg, endDeg, radius) {
+    // shortest visible arc from start to end
+    let s = normalize360(startDeg);
+    let e = normalize360(endDeg);
+    let delta = e - s;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    const large = Math.abs(delta) > 180 ? 1 : 0; // practically always 0 due to shortest arc
+    const sweep = delta >= 0 ? 0 : 1;
+
+    const p1 = polarToSvg(s, radius);
+    const p2 = polarToSvg(s + delta, radius);
+    return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${radius} ${radius} 0 ${large} ${sweep} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+
+  function renderTable(a1, a2) {
+    const steps = [0, 0.25, 0.5, 0.75, 1];
+    imputeTable.innerHTML = steps.map(t => {
+      const naive = naiveMean(a1, a2, t);
+      const circ = circularMean(a1, a2, t).ang;
+      let note = "";
+      if (t === 0.5 && Math.abs(normalize360(a1 - a2)) === 20) {
+        note = "midpoint";
+      } else if (t === 0.5) {
+        note = "center of gap";
+      } else if (t === 0) {
+        note = "observed A";
+      } else if (t === 1) {
+        note = "observed B";
+      } else {
+        note = "imputed";
+      }
+
+      return `
+        <tr>
+          <td>${t.toFixed(2)}</td>
+          <td>${naive.toFixed(1)}°</td>
+          <td style="color:#34d399;font-weight:700;">${circ.toFixed(1)}°</td>
+          <td style="color:#94a3b8;">${note}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function draw() {
+    const a1 = parseFloat(elA1.value);
+    const a2 = parseFloat(elA2.value);
+    const t  = parseFloat(elT.value);
+
+    outA1.textContent = a1.toFixed(0);
+    outA2.textContent = a2.toFixed(0);
+    outT.textContent  = t.toFixed(2);
+
+    const naive = naiveMean(a1, a2, t);
+    const circ = circularMean(a1, a2, t);
+
+    outNaive.textContent = `${naive.toFixed(1)}°`;
+    outCirc.textContent  = `${circ.ang.toFixed(1)}°`;
+    outX.textContent     = circ.x.toFixed(3);
+    outY.textContent     = circ.y.toFixed(3);
+
+    // vectors
+    const pA = polarToSvg(a1, R);
+    const pB = polarToSvg(a2, R);
+
+    // linear blend of tip positions in Cartesian space
+    const xA = Math.cos(deg2rad(a1));
+    const yA = Math.sin(deg2rad(a1));
+    const xB = Math.cos(deg2rad(a2));
+    const yB = Math.sin(deg2rad(a2));
+    const bx = (1 - t) * xA + t * xB;
+    const by = (1 - t) * yA + t * yB;
+    const blendRadius = 180;
+    const blendX = CX + blendRadius * bx;
+    const blendY = CY - blendRadius * by;
+
+    const naivePoint = polarToSvg(naive, 160);
+    const circPoint = polarToSvg(circ.ang, 180);
+
+    // arc showing shortest route between A and B
+    const arc = arcPath(a1, a2, 110);
+
+    blendLayer.innerHTML = `
+      <path d="${arc}" fill="none" stroke="#38bdf8" stroke-width="4" stroke-dasharray="10 8" opacity="0.8"></path>
+      ${lineSVG(pA.x, pA.y, pB.x, pB.y, "#94a3b8", 2, "8 7")}
+      ${circleDot(blendX, blendY, "#cbd5e1", "#94a3b8", 7)}
+      ${label(blendX + 12, blendY - 12, "Cartesian blend", "#cbd5e1", "start", 12)}
+    `;
+
+    vectorLayer.innerHTML = `
+      ${lineSVG(CX, CY, pA.x, pA.y, "#38bdf8", 5, "", "arrow-blue")}
+      ${lineSVG(CX, CY, pB.x, pB.y, "#f59e0b", 5, "", "arrow-orange")}
+      ${lineSVG(CX, CY, circPoint.x, circPoint.y, "#34d399", 6, "", "arrow-green")}
+      ${lineSVG(CX, CY, naivePoint.x, naivePoint.y, "#cbd5e1", 4, "10 7", "arrow-gray")}
+      ${circleDot(pA.x, pA.y, "#38bdf8")}
+      ${circleDot(pB.x, pB.y, "#f59e0b")}
+      ${circleDot(circPoint.x, circPoint.y, "#34d399")}
+      ${circleDot(naivePoint.x, naivePoint.y, "#cbd5e1")}
+    `;
+
+    textLayer.innerHTML = `
+      ${label(pA.x + 14, pA.y + 4, "A", "#93c5fd", "start", 14)}
+      ${label(pB.x + 14, pB.y + 4, "B", "#fcd34d", "start", 14)}
+      ${label(circPoint.x + 14, circPoint.y + 4, "Circular result", "#86efac", "start", 14)}
+      ${label(naivePoint.x + 14, naivePoint.y + 4, "Naive result", "#e2e8f0", "start", 14)}
+      ${label(CX + 12, CY - 12, `t = ${t.toFixed(2)}`, "#dbeafe", "start", 13)}
+      ${label(520, 150, `A = ${a1.toFixed(0)}°`, "#38bdf8", "start", 14)}
+      ${label(520, 175, `B = ${a2.toFixed(0)}°`, "#f59e0b", "start", 14)}
+      ${label(520, 200, `Naive = ${naive.toFixed(1)}°`, "#cbd5e1", "start", 14)}
+      ${label(520, 225, `Circular = ${circ.ang.toFixed(1)}°`, "#34d399", "start", 14)}
+    `;
+
+    renderTable(a1, a2);
+  }
+
+  elA1.addEventListener("input", draw);
+  elA2.addEventListener("input", draw);
+  elT.addEventListener("input", draw);
+
+  draw();
+</script>
+</body>
+</html>

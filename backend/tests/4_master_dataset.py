@@ -4,10 +4,12 @@ from tqdm import tqdm
 import re
 from loguru import logger
 
-ROOT_DIR = Path(__name__).resolve().parent
+ROOT_DIR = Path(__name__).resolve().parents[2]
 DATASET_DIR = ROOT_DIR / "backend" / "data"
 RAW_DIR = DATASET_DIR / "raw" / "2025"
 STATION_META_PATH = DATASET_DIR / "raw" / "stations.csv"
+print("Root directorys set as :",ROOT_DIR)
+assert STATION_META_PATH.exists()
 
 # Original columns in the raw data files:
 # Timestamp,PM2.5 (µg/m³),PM10 (µg/m³),NO (µg/m³),NO2 (µg/m³),NOx (ppb),
