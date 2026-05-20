@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gaussian Plume · Transport Matrix Explainer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ── RESET ─────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        /* ── THEME ─────────────────────────────── */
+        :root {
+            --ink: #0a0c10;
+            --page: #f5f2eb;
+            --warm: #ede8dc;
+            --rule: #d4ccbc;
+            --muted: #7a7060;
+            --hi: #c84b2f;
+            /* terracotta accent */
+            --hi2: #2a6496;
+            /* steel blue */
+            --hi3: #3a8a5c;
+            /* sage green */
+            --hi4: #7b5ea7;
+            /* dusty violet */
+            --mono: 'IBM Plex Mono', monospace;
+            --head: 'Syne', sans-serif;
+            --body: 'Lora', serif;
+        }
+
+        body {
+            background: var(--page);
+            color: var(--ink);
+            font-family: var(--body);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── TOP BAR ────────────────────────────── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 52px;
+            border-bottom: 1.5px solid var(--rule);
+            background: var(--warm);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .topbar-title {
+            font-family: var(--head);
+            font-weight: 800;
+            font-size: 15px;
+            letter-spacing: .03em;
+            color: var(--ink);
+        }
+
+        .topbar-sub {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: var(--mono);
+            margin-left: 14px;
+        }
+
+        /* ── TABS ───────────────────────────────── */
+        .tabs {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            padding: 0 28px;
+            border-bottom: 1.5px solid var(--rule);
+            background: var(--warm);
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+
+        .tab {
+            font-family: var(--head);
+            font-weight: 600;
+            font-size: 12.5px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            border-bottom: 2.5px solid transparent;
+            margin-bottom: -1.5px;
+            white-space: nowrap;
+            transition: color .18s, border-color .18s;
+        }
+
+        .tab.active {
+            color: var(--hi);
+            border-bottom-color: var(--hi);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--ink);
+        }
+
+        .tab-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: currentColor;
+            color: var(--warm);
+            font-size: 9px;
+            margin-right: 7px;
+            transition: background .18s;
+        }
+
+        /* ── MAIN SPLIT ─────────────────────────── */
+        .split {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .panel-vis {
+            position: relative;
+            overflow: hidden;
+            border-right: 1.5px solid var(--rule);
+            background: #f0ece1;
+        }
+
+        .panel-exp {
+            overflow-y: auto;
+            padding: 28px 26px 28px 24px;
+            background: var(--page);
+        }
+
+        /* ── CANVAS ─────────────────────────────── */
+        .vis-layer {
+            position: absolute;
+            inset: 0;
+            display: none;
+        }
+
+        .vis-layer.active {
+            display: block;
+        }
+
+        canvas,
+        svg.main-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* ── CONTROLS OVERLAY ───────────────────── */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .ctrl {
+            pointer-events: all;
+            background: rgba(245, 242, 235, .93);
+            border: 1.5px solid var(--rule);
+            border-radius: 10px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 11.5px;
+        }
+
+        .ctrl label {
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .ctrl input[type=range] {
+            -webkit-appearance: none;
+            width: 110px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--rule);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .ctrl input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--hi);
+            cursor: pointer;
+        }
+
+        .ctrl-val {
+            color: var(--ink);
+            font-weight: 500;
+            min-width: 46px;
+            text-align: right;
+        }
+
+        .ctrl select {
+            background: transparent;
+            border: none;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--ink);
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* ── EXPLANATION PANEL ──────────────────── */
+        .exp-layer {
+            display: none;
+        }
+
+        .exp-layer.active {
+            display: block;
+        }
+
+        .exp-step {
+            font-family: var(--head);
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--hi);
+            margin-bottom: 6px;
+        }
+
+        .exp-h {
+            font-family: var(--head);
+            font-weight: 800;
+            font-size: 22px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            color: var(--ink);
+        }
+
+        .exp-lead {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #2a2520;
+            margin-bottom: 18px;
+        }
+
+        .exp-body {
+            font-size: 13.5px;
+            line-height: 1.75;
+            color: #3a3228;
+            margin-bottom: 14px;
+        }
+
+        hr.rule {
+            border: none;
+            border-top: 1px solid var(--rule);
+            margin: 18px 0;
+        }
+
+        .eq-box {
+            background: var(--warm);
+            border: 1.5px solid var(--rule);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--ink);
+            margin: 12px 0;
+            white-space: pre-wrap;
+            line-height: 1.7;
+        }
+
+        .eq-box .comment {
+            color: var(--muted);
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .kv-cell {
+            background: var(--warm);
+            border: 1.5px solid var(--rule);
+            border-radius: 9px;
+            padding: 10px 12px;
+        }
+
+        .kv-label {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .kv-val {
+            font-family: var(--mono);
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        .kv-val.accent {
+            color: var(--hi);
+        }
+
+        .kv-val.blue {
+            color: var(--hi2);
+        }
+
+        .kv-val.green {
+            color: var(--hi3);
+        }
+
+        .callout {
+            border-left: 3.5px solid var(--hi);
+            padding: 10px 14px;
+            background: rgba(200, 75, 47, .06);
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            line-height: 1.65;
+            margin: 12px 0;
+            color: #2a1810;
+        }
+
+        .callout.blue {
+            border-color: var(--hi2);
+            background: rgba(42, 100, 150, .06);
+            color: #0d1e2a;
+        }
+
+        .callout.green {
+            border-color: var(--hi3);
+            background: rgba(58, 138, 92, .06);
+            color: #0d1e14;
+        }
+
+        .tag {
+            display: inline-block;
+            background: var(--hi);
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 10px;
+            border-radius: 4px;
+            padding: 2px 7px;
+            margin-bottom: 4px;
+        }
+
+        .tag.blue {
+            background: var(--hi2);
+        }
+
+        .tag.green {
+            background: var(--hi3);
+        }
+
+        .tag.violet {
+            background: var(--hi4);
+        }
+
+        .step-list {
+            list-style: none;
+            margin: 10px 0;
+        }
+
+        .step-list li {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--rule);
+            font-size: 13px;
+            line-height: 1.6;
+            color: #2a2520;
+        }
+
+        .step-list li:last-child {
+            border: none;
+        }
+
+        .step-list li .num {
+            font-family: var(--mono);
+            font-weight: 500;
+            color: var(--hi);
+            min-width: 20px;
+            margin-top: 1px;
+        }
+
+        /* ── LIVE READOUT BAR ───────────────────── */
+        .readout-bar {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: rgba(245, 242, 235, .95);
+            border: 1.5px solid var(--rule);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-family: var(--mono);
+            font-size: 11px;
+            line-height: 1.8;
+            color: var(--ink);
+            min-width: 210px;
+            pointer-events: none;
+        }
+
+        .readout-bar .r-label {
+            color: var(--muted);
+        }
+
+        .readout-bar .r-val {
+            float: right;
+            font-weight: 500;
+        }
+
+        .readout-bar .r-val.accent {
+            color: var(--hi);
+        }
+
+        .readout-bar .r-val.blue {
+            color: var(--hi2);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div style="display:flex;align-items:baseline;gap:0">
+            <span class="topbar-title">Gaussian Plume · Transport Matrix</span>
+            <span class="topbar-sub">C = T · Q &nbsp;·&nbsp; Six-step visual walkthrough</span>
+        </div>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Adjust sliders in each step to build
+            intuition</span>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <button class="tab active" data-tab="0"><span class="tab-num">1</span>What is a Plume?</button>
+        <button class="tab" data-tab="1"><span class="tab-num">2</span>Distance &amp; Bearing</button>
+        <button class="tab" data-tab="2"><span class="tab-num">3</span>Wind Frame</button>
+        <button class="tab" data-tab="3"><span class="tab-num">4</span>Dispersion σ</button>
+        <button class="tab" data-tab="4"><span class="tab-num">5</span>T Element</button>
+        <button class="tab" data-tab="5"><span class="tab-num">6</span>Full Matrix C=TQ</button>
+    </div>
+
+    <!-- MAIN SPLIT -->
+    <div class="split">
+
+        <!-- ═══ VISUALISATION SIDE ═══ -->
+        <div class="panel-vis">
+
+            <!-- TAB 0: Plume overview -->
+            <div class="vis-layer active" id="vis0">
+                <canvas id="c0"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Wind dir</label><input type="range" id="s0wd" min="0" max="359"
+                            value="60"><span class="ctrl-val" id="s0wd_v">60°</span></div>
+                    <div class="ctrl"><label>Wind speed</label><input type="range" id="s0ws" min="1" max="12" step="0.5"
+                            value="3"><span class="ctrl-val" id="s0ws_v">3 m/s</span></div>
+                    <div class="ctrl"><label>Stability</label><select id="s0stab">
+                            <option>A</option>
+                            <option>B</option>
+                            <option selected>C</option>
+                            <option>D</option>
+                            <option>E</option>
+                            <option>F</option>
+                        </select></div>
+                    <div class="ctrl"><label>Stack H</label><input type="range" id="s0h" min="5" max="120"
+                            value="40"><span class="ctrl-val" id="s0h_v">40 m</span></div>
+                </div>
+                <div class="readout-bar" id="rb0">
+                    <span class="r-label">Stability class &nbsp;</span><span class="r-val blue"
+                        id="rb0_stab">C</span><br>
+                    <span class="r-label">σ_y at 1 km &nbsp;&nbsp;&nbsp;&nbsp;</span><span class="r-val"
+                        id="rb0_sy">—</span><br>
+                    <span class="r-label">σ_z at 1 km &nbsp;&nbsp;&nbsp;&nbsp;</span><span class="r-val"
+                        id="rb0_sz">—</span>
+                </div>
+            </div>
+
+            <!-- TAB 1: Haversine distance + bearing -->
+            <div class="vis-layer" id="vis1">
+                <canvas id="c1"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Source lat</label><input type="range" id="s1lat1" min="12.7" max="13.1"
+                            step="0.001" value="12.92"><span class="ctrl-val" id="s1lat1_v">12.920</span></div>
+                    <div class="ctrl"><label>Rec lat</label><input type="range" id="s1lat2" min="12.7" max="13.1"
+                            step="0.001" value="13.03"><span class="ctrl-val" id="s1lat2_v">13.030</span></div>
+                    <div class="ctrl"><label>Rec lon</label><input type="range" id="s1lon2" min="77.4" max="77.8"
+                            step="0.001" value="77.66"><span class="ctrl-val" id="s1lon2_v">77.660</span></div>
+                </div>
+                <div class="readout-bar" id="rb1">
+                    <span class="r-label">Distance d &nbsp;&nbsp;&nbsp;</span><span class="r-val blue"
+                        id="rb1_d">—</span><br>
+                    <span class="r-label">Bearing θ &nbsp;&nbsp;&nbsp;&nbsp;</span><span class="r-val"
+                        id="rb1_b">—</span>
+                </div>
+            </div>
+
+            <!-- TAB 2: Wind frame projection -->
+            <div class="vis-layer" id="vis2">
+                <canvas id="c2"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Bearing</label><input type="range" id="s2bear" min="0" max="359"
+                            value="55"><span class="ctrl-val" id="s2bear_v">55°</span></div>
+                    <div class="ctrl"><label>Wind dir</label><input type="range" id="s2wd" min="0" max="359"
+                            value="90"><span class="ctrl-val" id="s2wd_v">90°</span></div>
+                    <div class="ctrl"><label>Distance (km)</label><input type="range" id="s2dist" min="0.5" max="8"
+                            step="0.1" value="3"><span class="ctrl-val" id="s2dist_v">3.0</span></div>
+                </div>
+                <div class="readout-bar" id="rb2">
+                    <span class="r-label">x downwind &nbsp;&nbsp;</span><span class="r-val blue" id="rb2_x">—</span><br>
+                    <span class="r-label">y crosswind &nbsp;</span><span class="r-val" id="rb2_y">—</span><br>
+                    <span class="r-label">Status &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+                        class="r-val accent" id="rb2_s">—</span>
+                </div>
+            </div>
+
+            <!-- TAB 3: Sigma dispersion -->
+            <div class="vis-layer" id="vis3">
+                <canvas id="c3"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Stability</label><select id="s3stab">
+                            <option>A</option>
+                            <option>B</option>
+                            <option selected>C</option>
+                            <option>D</option>
+                            <option>E</option>
+                            <option>F</option>
+                        </select></div>
+                    <div class="ctrl"><label>Distance (km)</label><input type="range" id="s3dist" min="0.5" max="8"
+                            step="0.1" value="2"><span class="ctrl-val" id="s3dist_v">2.0</span></div>
+                    <div class="ctrl"><label>Stack H (m)</label><input type="range" id="s3h" min="5" max="120"
+                            value="30"><span class="ctrl-val" id="s3h_v">30 m</span></div>
+                </div>
+                <div class="readout-bar" id="rb3">
+                    <span class="r-label">σ_y &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+                        class="r-val blue" id="rb3_sy">—</span><br>
+                    <span class="r-label">σ_z &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+                        class="r-val green" id="rb3_sz">—</span><br>
+                    <span class="r-label">exp(-H²/2σz²)</span><span class="r-val accent" id="rb3_ev">—</span>
+                </div>
+            </div>
+
+            <!-- TAB 4: T element -->
+            <div class="vis-layer" id="vis4">
+                <canvas id="c4"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Wind dir</label><input type="range" id="s4wd" min="0" max="359"
+                            value="80"><span class="ctrl-val" id="s4wd_v">80°</span></div>
+                    <div class="ctrl"><label>Wind speed</label><input type="range" id="s4ws" min="0.5" max="12"
+                            step="0.5" value="3"><span class="ctrl-val" id="s4ws_v">3 m/s</span></div>
+                    <div class="ctrl"><label>Stability</label><select id="s4stab">
+                            <option>A</option>
+                            <option>B</option>
+                            <option selected>C</option>
+                            <option>D</option>
+                            <option>E</option>
+                            <option>F</option>
+                        </select></div>
+                    <div class="ctrl"><label>Stack H (m)</label><input type="range" id="s4h" min="5" max="100"
+                            value="20"><span class="ctrl-val" id="s4h_v">20 m</span></div>
+                </div>
+                <div class="readout-bar" id="rb4">
+                    <span class="r-label">T_ij &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+                        class="r-val accent" id="rb4_T">—</span><br>
+                    <span class="r-label">Lat. factor &nbsp;&nbsp;</span><span class="r-val blue"
+                        id="rb4_lat">—</span><br>
+                    <span class="r-label">Vert. factor &nbsp;</span><span class="r-val green" id="rb4_vert">—</span>
+                </div>
+            </div>
+
+            <!-- TAB 5: Full matrix -->
+            <div class="vis-layer" id="vis5">
+                <canvas id="c5"></canvas>
+                <div class="controls">
+                    <div class="ctrl"><label>Wind dir</label><input type="range" id="s5wd" min="0" max="359"
+                            value="225"><span class="ctrl-val" id="s5wd_v">225°</span></div>
+                    <div class="ctrl"><label>Wind speed</label><input type="range" id="s5ws" min="0.5" max="12"
+                            step="0.5" value="3"><span class="ctrl-val" id="s5ws_v">3 m/s</span></div>
+                    <div class="ctrl"><label>Stability</label><select id="s5stab">
+                            <option>A</option>
+                            <option>B</option>
+                            <option selected>C</option>
+                            <option>D</option>
+                            <option>E</option>
+                            <option>F</option>
+                        </select></div>
+                </div>
+                <div class="readout-bar" id="rb5">
+                    <span class="r-label">Max T &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+                        class="r-val accent" id="rb5_max">—</span><br>
+                    <span class="r-label">Zero entries &nbsp;</span><span class="r-val blue" id="rb5_z">—</span><br>
+                    <span class="r-label">Cond. number &nbsp;</span><span class="r-val" id="rb5_k">—</span>
+                </div>
+            </div>
+
+        </div><!-- end panel-vis -->
+
+        <!-- ═══ EXPLANATION SIDE ═══ -->
+        <div class="panel-exp">
+
+            <!-- STEP 0 -->
+            <div class="exp-layer active" id="exp0">
+                <div class="exp-step">Step 1 of 6</div>
+                <div class="exp-h">What is a Gaussian Plume?</div>
+                <div class="exp-lead">Imagine a factory chimney releasing smoke. The wind carries it downwind while
+                    turbulence spreads it outward — sideways and vertically. This spreading follows a bell-curve
+                    (Gaussian) shape in both directions.</div>
+                <div class="exp-body">The canvas shows the plume as a colour field — darker orange means higher
+                    concentration. You are looking <em>from above</em> (top-down). The source is the black dot at the
+                    centre.</div>
+                <div class="callout">Try rotating the <strong>Wind direction</strong> slider. The plume always points
+                    downwind from the source — it cannot blow upwind.</div>
+                <hr class="rule">
+                <div class="exp-body">The spreading width is controlled by the <strong>stability class</strong> (A–F).
+                    Think of it as how turbulent the atmosphere is:</div>
+                <ul class="step-list">
+                    <li><span class="num">A</span>Very unstable — hot sunny day, strong mixing. Plume spreads <em>very
+                            wide</em>, lower peak concentration.</li>
+                    <li><span class="num">D</span>Neutral — overcast or moderate wind. Medium spread.</li>
+                    <li><span class="num">F</span>Stable — calm night. Plume stays narrow, concentration stays high
+                        along centreline.</li>
+                </ul>
+                <hr class="rule">
+                <div class="eq-box"><span class="comment">// Ground-level concentration at a point (x, y)</span>
+                    C(x,y) = Q / (π·u·σ_y·σ_z)
+                    × exp(−y² / 2σ_y²) <span class="comment">← lateral Gaussian</span>
+                    × exp(−H² / 2σ_z²) <span class="comment">← vertical dilution</span></div>
+                <div class="callout blue">The <strong>stack height H</strong> matters: taller stacks release pollution
+                    higher up. The term exp(−H²/2σ_z²) shrinks as H grows — meaning less of the plume reaches the ground
+                    near the source.</div>
+                <div class="exp-body"><strong>σ_y</strong> is the lateral (crosswind) spread in metres.
+                    <strong>σ_z</strong> is the vertical spread. Both grow as distance increases. Adjust the sliders —
+                    notice how the plume footprint changes shape.
+                </div>
+            </div>
+
+            <!-- STEP 1 -->
+            <div class="exp-layer" id="exp1">
+                <div class="exp-step">Step 2 of 6</div>
+                <div class="exp-h">Distance &amp; Bearing Between Stations</div>
+                <div class="exp-lead">Before any physics, we need to know <em>how far apart</em> two stations are and
+                    <em>in which direction</em>. This is pure geometry on the curved surface of the Earth.
+                </div>
+                <div class="exp-body">The canvas shows your 14 Bangalore monitoring stations. The green dot is the
+                    source; the red dot is the receptor. A line connects them.</div>
+                <hr class="rule">
+                <span class="tag">Haversine Formula</span>
+                <div class="exp-body" style="margin-top:8px">The Earth is a sphere, so simple Pythagoras gives the wrong
+                    answer for distances longer than ~1 km. The <strong>Haversine formula</strong> gives the true
+                    great-circle distance:</div>
+                <div class="eq-box">a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlon/2)
+                    d = 2R · arcsin(√a) <span class="comment">// R = 6371 km</span></div>
+                <div class="callout">Drag the <strong>Rec lat / Rec lon</strong> sliders. Watch the distance and bearing
+                    update in the readout box. The line on the canvas rotates to match.</div>
+                <hr class="rule">
+                <span class="tag blue">Bearing Formula</span>
+                <div class="exp-body" style="margin-top:8px"><strong>Bearing</strong> is the compass direction from the
+                    source to the receptor, measured clockwise from North (0° = North, 90° = East, 180° = South).</div>
+                <div class="eq-box">θ = atan2(
+                    sin(Δlon)·cos(lat2),
+                    cos(lat1)·sin(lat2) − sin(lat1)·cos(lat2)·cos(Δlon)
+                    ) mod 360°</div>
+                <div class="exp-body">These two numbers — <em>d</em> (distance) and <em>θ</em> (bearing) — are the raw
+                    geometric inputs to the Gaussian Plume model. Nothing atmospheric yet.</div>
+            </div>
+
+            <!-- STEP 2 -->
+            <div class="exp-layer" id="exp2">
+                <div class="exp-step">Step 3 of 6</div>
+                <div class="exp-h">Projecting onto the Wind Frame</div>
+                <div class="exp-lead">The Gaussian Plume model needs distance along the wind direction, not compass
+                    direction. We rotate the geometry into the wind's own coordinate system.</div>
+                <div class="exp-body">Think of it like this: the wind defines a new "x-axis" pointing downwind. We
+                    project the source→receptor vector onto this axis.</div>
+                <hr class="rule">
+                <div class="kv">
+                    <div class="kv-cell">
+                        <div class="kv-label">Downwind x</div>
+                        <div class="kv-val blue" id="e2x">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Crosswind y</div>
+                        <div class="kv-val green" id="e2y">—</div>
+                    </div>
+                </div>
+                <div class="eq-box">Δθ = windDir − bearing
+                    x = d · cos(Δθ) <span class="comment">← downwind component</span>
+                    y = d · sin(Δθ) <span class="comment">← crosswind component</span></div>
+                <div class="callout"><strong>If x ≤ 0</strong>, the receptor is upwind of the source. The plume cannot
+                    travel backward. We immediately set T<sub>ij</sub> = 0 and stop. This is why ~50% of all matrix
+                    entries are zero!</div>
+                <hr class="rule">
+                <div class="exp-body">On the canvas, the blue arrow is the wind direction. The green arrow is the
+                    downwind axis (x). The orange dashed line is the crosswind axis (y).</div>
+                <div class="callout blue">Try setting <strong>Wind dir = Bearing</strong>. The receptor lands exactly on
+                    the centreline (y = 0). This is where concentration is highest — maximum exposure.</div>
+                <div class="callout green">Now set <strong>Wind dir = Bearing + 90°</strong>. x becomes zero → T = 0.
+                    The wind blows perpendicular to the receptor so the plume misses it entirely.</div>
+            </div>
+
+            <!-- STEP 3 -->
+            <div class="exp-layer" id="exp3">
+                <div class="exp-step">Step 4 of 6</div>
+                <div class="exp-h">Dispersion Widths σ_y and σ_z</div>
+                <div class="exp-lead">Once we know x (downwind distance), we compute how wide the plume has grown at
+                    that point. This uses empirical power-law formulas fitted to real field measurements.</div>
+                <div class="exp-body">Think of σ_y and σ_z as the <em>standard deviation</em> of the bell-curve in the
+                    crosswind and vertical directions. Larger σ = wider, more diluted plume.</div>
+                <hr class="rule">
+                <div class="eq-box">σ_y(x) = a_y · x^b_y <span class="comment">// crosswind spread [m]</span>
+                    σ_z(x) = a_z · x^b_z <span class="comment">// vertical spread [m]</span>
+                    (capped at 500 m)</div>
+                <div class="kv">
+                    <div class="kv-cell">
+                        <div class="kv-label">σ_y at distance</div>
+                        <div class="kv-val blue" id="e3sy">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">σ_z at distance</div>
+                        <div class="kv-val green" id="e3sz">—</div>
+                    </div>
+                </div>
+                <div class="exp-body">The canvas shows <strong>vertical cross-section</strong> of the plume: the stack
+                    on the left, the receptor on the ground at right. The blue ellipse is the 1-σ plume envelope. The
+                    dashed line is where the centreline sits at height H.</div>
+                <hr class="rule">
+                <span class="tag violet">Why stability matters here</span>
+                <div class="exp-body" style="margin-top:8px">Each stability class (A–F) has different a, b coefficients.
+                    Class A has large coefficients → very wide plume quickly. Class F has small coefficients → narrow
+                    plume that travels far without diluting.</div>
+                <div class="callout">The vertical term <strong>exp(−H²/2σ_z²)</strong> tells you how much of the plume
+                    has mixed down to ground level. When σ_z ≫ H, nearly all of it has. When σ_z ≪ H, the plume is still
+                    aloft and the ground sees almost nothing.</div>
+                <div class="kv" style="margin-top:12px">
+                    <div class="kv-cell">
+                        <div class="kv-label">exp(−H²/2σ_z²)</div>
+                        <div class="kv-val accent" id="e3ev">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Stack H</div>
+                        <div class="kv-val" id="e3h">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4 -->
+            <div class="exp-layer" id="exp4">
+                <div class="exp-step">Step 5 of 6</div>
+                <div class="exp-h">Computing One T<sub>ij</sub> Element</div>
+                <div class="exp-lead">We now combine all previous steps into a single number: the transport coefficient
+                    T<sub>ij</sub>. It answers: "If source j emits 1 g/s, what concentration does receptor i see?"</div>
+                <div class="eq-box">T_ij = (1 / π·u·σ_y·σ_z)
+                    × exp(−y² / 2σ_y²) <span class="comment">← lateral factor</span>
+                    × exp(−H² / 2σ_z²) <span class="comment">← vertical factor</span>
+                    × 1e6 <span class="comment">← g/m³ → µg/m³</span></div>
+                <div class="kv">
+                    <div class="kv-cell">
+                        <div class="kv-label">T_ij value</div>
+                        <div class="kv-val accent" id="e4T">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Lateral factor</div>
+                        <div class="kv-val blue" id="e4lat">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Vertical factor</div>
+                        <div class="kv-val green" id="e4vert">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Dilution 1/πuσσ</div>
+                        <div class="kv-val" id="e4dil">—</div>
+                    </div>
+                </div>
+                <hr class="rule">
+                <div class="exp-body">The canvas shows the <strong>T value field</strong> as a heat map — drag the
+                    receptor (click on canvas) to see how T changes with position relative to the source and wind
+                    direction.</div>
+                <div class="callout">Three independent effects multiply together:<br>
+                    • <strong>Dilution</strong>: the plume is spread by turbulence — more σ = lower T<br>
+                    • <strong>Lateral</strong>: how far off the centreline is the receptor?<br>
+                    • <strong>Vertical</strong>: how much has the plume descended to ground?
+                </div>
+                <hr class="rule">
+                <ul class="step-list">
+                    <li><span class="num">→</span>Higher wind speed u → larger denominator → T drops</li>
+                    <li><span class="num">→</span>Receptor on centreline (y=0) → lateral factor = 1.0 (maximum)</li>
+                    <li><span class="num">→</span>Taller stack H → vertical factor → 0 (plume aloft)</li>
+                    <li><span class="num">→</span>Unstable class A → large σ → T drops quickly with distance</li>
+                </ul>
+            </div>
+
+            <!-- STEP 5 -->
+            <div class="exp-layer" id="exp5">
+                <div class="exp-step">Step 6 of 6</div>
+                <div class="exp-h">The Full Transport Matrix C = T · Q</div>
+                <div class="exp-lead">We repeat the T<sub>ij</sub> calculation for every pair of the 14 stations. The
+                    result is a 14×14 matrix. Each cell tells how much one station influences another.</div>
+                <div class="exp-body">The canvas shows the matrix as a heatmap. Each row is a receptor (sensor), each
+                    column is a source. Bright = high transport coefficient. Grey = zero (upwind).</div>
+                <hr class="rule">
+                <div class="eq-box">C = T · Q <span class="comment">// the core equation</span>
+
+                    C ∈ ℝ¹⁴ <span class="comment">// measured concentrations [µg/m³]</span>
+                    T ∈ ℝ¹⁴ˣ¹⁴ <span class="comment">// transport matrix</span>
+                    Q ∈ ℝ¹⁴ <span class="comment">// unknown emission rates [g/s]</span></div>
+                <div class="callout">Rotate the wind direction. Watch whole rows and columns switch between active
+                    (coloured) and zero (grey). Wind controls which sources can even reach which receptors.</div>
+                <hr class="rule">
+                <span class="tag">Why inversion is hard</span>
+                <div class="exp-body" style="margin-top:8px">To find Q (emission rates), we need to <em>invert</em> this
+                    equation: Q = T⁻¹ · C. But T is severely ill-conditioned because:</div>
+                <ul class="step-list">
+                    <li><span class="num">1</span><strong>Many zeros</strong>: upwind pairs give T=0, making the matrix
+                        rank-deficient.</li>
+                    <li><span class="num">2</span><strong>Huge range</strong>: nearby downwind pairs have T ≫ 1; far
+                        crosswind pairs T ≈ 0. Condition number κ = σ_max/σ_min is enormous.</li>
+                    <li><span class="num">3</span><strong>Non-negative Q</strong>: emission rates can't be negative, so
+                        plain matrix inversion fails physically.</li>
+                </ul>
+                <div class="callout blue">This is why we need <strong>NNLS</strong> (non-negative least squares),
+                    <strong>Tikhonov regularisation</strong>, or <strong>Bayesian inference</strong> — not naive matrix
+                    inversion. Each method handles the ill-conditioning differently.
+                </div>
+                <div class="kv">
+                    <div class="kv-cell">
+                        <div class="kv-label">Max T value</div>
+                        <div class="kv-val accent" id="e5max">—</div>
+                    </div>
+                    <div class="kv-cell">
+                        <div class="kv-label">Zero entries</div>
+                        <div class="kv-val blue" id="e5z">—</div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end panel-exp -->
+    </div><!-- end split -->
+
+    <script>
+        // ═══════════════════════════════════════════════════
+        //  CONSTANTS & HELPERS
+        // ═══════════════════════════════════════════════════
+        const PG = {
+            A: { ay: 0.36, by: 0.90, az: 0.00023, bz: 2.10 },
+            B: { ay: 0.25, by: 0.90, az: 0.058, bz: 1.09 },
+            C: { ay: 0.19, by: 0.90, az: 0.11, bz: 0.91 },
+            D: { ay: 0.13, by: 0.90, az: 0.57, bz: 0.58 },
+            E: { ay: 0.096, by: 0.90, az: 0.85, bz: 0.47 },
+            F: { ay: 0.063, by: 0.90, az: 0.77, bz: 0.42 },
+        };
+        const MIN_WS = 0.5, MIN_X = 500, MAX_SZ = 500, R_EARTH = 6371;
+        const d2r = d => d * Math.PI / 180, r2d = r => r * 180 / Math.PI;
+        const n360 = d => ((d % 360) + 360) % 360;
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const fmt = (v, d = 2) => Number.isFinite(v) ? v.toFixed(d) : '—';
+
+        function hav(la1, lo1, la2, lo2) {
+            const p1 = d2r(la1), p2 = d2r(la2), dp = d2r(la2 - la1), dl = d2r(lo2 - lo1);
+            const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+            return 2 * R_EARTH * Math.asin(Math.sqrt(clamp(a, 0, 1)));
+        }
+        function bear(la1, lo1, la2, lo2) {
+            const p1 = d2r(la1), p2 = d2r(la2), dl = d2r(lo2 - lo1);
+            return n360(r2d(Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl))));
+        }
+        function sig(x_m, cls) {
+            const c = PG[cls] || PG.D;
+            const sy = c.ay * Math.pow(x_m, c.by);
+            const sz = Math.min(c.az * Math.pow(x_m, c.bz), MAX_SZ);
+            return { sy, sz };
+        }
+        function tElem(x_m, y_m, u, H, cls) {
+            if (x_m < MIN_X) return 0;
+            const uu = Math.max(u, MIN_WS);
+            const { sy, sz } = sig(x_m, cls);
+            if (sy < 1e-6 || sz < 1e-6) return 0;
+            const lat = Math.exp(-(y_m ** 2) / (2 * (sy ** 2)));
+            const vert = Math.exp(-(H ** 2) / (2 * (sz ** 2)));
+            const T = (1 / (Math.PI * uu * sy * sz)) * lat * vert;
+            return isFinite(T) ? T * 1e6 : 0;
+        }
+
+        // ── colour maps ──────────────────────────────────
+        function concColor(t) {
+            // t in [0,1]
+            const r = Math.round(lerp(240, 180, t));
+            const g = Math.round(lerp(237, 60, t));
+            const b = Math.round(lerp(220, 20, t));
+            return [r, g, b];
+        }
+        function lerp(a, b, t) { return a + (b - a) * clamp(t, 0, 1); }
+
+        function heatColor(t) {
+            // blue → white → red
+            if (t < 0.5) {
+                const s = t * 2;
+                return [Math.round(lerp(240, 255, s)), Math.round(lerp(248, 255, s)), Math.round(lerp(255, 255, s))];
+            } else {
+                const s = (t - 0.5) * 2;
+                return [255, Math.round(lerp(255, 60, s)), Math.round(lerp(255, 20, s))];
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  HELPER: resize canvas to parent
+        // ═══════════════════════════════════════════════════
+        function resizeCanvas(canvas) {
+            const p = canvas.parentElement;
+            const w = p.clientWidth;
+            const h = p.clientHeight;
+
+            if (w === 0 || h === 0) return null;
+
+            canvas.width = w;
+            canvas.height = h;
+            return canvas.getContext('2d');
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  SLIDER WIRING
+        // ═══════════════════════════════════════════════════
+        function wire(id, suffix, fmt2, onInput) {
+            const el = document.getElementById(id);
+            const lbl = document.getElementById(id + '_v');
+            const upd = () => { if (lbl) lbl.textContent = fmt2(el.value); onInput(); };
+            el.addEventListener('input', upd);
+            el.addEventListener('change', upd);
+            return el;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STATIONS (Bangalore 14)
+        // ═══════════════════════════════════════════════════
+        const STATIONS = [
+            { n: 'BTMLayout', lat: 12.9135, lon: 77.5951 },
+            { n: 'BWSSBKadab.', lat: 12.9352, lon: 77.6814 },
+            { n: 'BapujiNagar', lat: 12.9519, lon: 77.5398 },
+            { n: 'CityRailway', lat: 12.9757, lon: 77.5661 },
+            { n: 'Hebbal', lat: 13.0292, lon: 77.5859 },
+            { n: 'HombegowdaN.', lat: 12.9385, lon: 77.5901 },
+            { n: 'Jayanagar5B', lat: 12.9210, lon: 77.5849 },
+            { n: 'Jigani', lat: 12.7816, lon: 77.6299 },
+            { n: 'KasturiNagar', lat: 13.0039, lon: 77.6642 },
+            { n: 'Peenya', lat: 13.0270, lon: 77.4941 },
+            { n: 'RVCE-Mail.', lat: 12.9214, lon: 77.5025 },
+            { n: 'SaneguravaH.', lat: 12.9903, lon: 77.5431 },
+            { n: 'ShivapuraP.', lat: 13.0246, lon: 77.5080 },
+            { n: 'SilkBoard', lat: 12.9173, lon: 77.6228 },
+        ];
+        const N = STATIONS.length;
+
+        // project lat/lon → canvas pixel
+        function toPixel(lat, lon, cx, cy, scale) {
+            const cLat = 12.9, cLon = 77.58;
+            const px = cx + (lon - cLon) * scale * 111 * Math.cos(d2r(cLat));
+            const py = cy - (lat - cLat) * scale * 111;
+            return { px, py };
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  TAB MACHINERY
+        // ═══════════════════════════════════════════════════
+        const tabs = document.querySelectorAll('.tab');
+        const visLayers = document.querySelectorAll('.vis-layer');
+        const expLayers = document.querySelectorAll('.exp-layer');
+        let activeTab = 0;
+        const draws = [null, null, null, null, null, null];
+
+        tabs.forEach(t => {
+            t.addEventListener('click', () => {
+                const idx = +t.dataset.tab;
+                tabs.forEach(x => x.classList.toggle('active', x === t));
+                visLayers.forEach((v, i) => v.classList.toggle('active', i === idx));
+                expLayers.forEach((e, i) => e.classList.toggle('active', i === idx));
+                activeTab = idx;
+                setTimeout(() => { if (draws[idx]) draws[idx](); }, 10);
+            });
+        });
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 0 — Plume overview (top-down)
+        // ═══════════════════════════════════════════════════
+        function initStep0() {
+            const canvas = document.getElementById('c0');
+            function draw() {
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const wd = +document.getElementById('s0wd').value;
+                const ws = +document.getElementById('s0ws').value;
+                const cls = document.getElementById('s0stab').value;
+                const stackH = +document.getElementById('s0h').value;
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+                // grid
+                ctx.strokeStyle = 'rgba(180,170,155,.25)'; ctx.lineWidth = 1;
+                for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+                const sx = W / 2, sy = H / 2;
+                const toRad = d2r(n360(wd + 180));
+                const cosW = Math.cos(toRad), sinW = Math.sin(toRad);
+
+                // render plume field
+                const imgData = ctx.getImageData(0, 0, W, H);
+                const pxData = imgData.data;
+                const STEP = 3;
+                for (let py = 0; py < H; py += STEP) {
+                    for (let px = 0; px < W; px += STEP) {
+                        const dx = (px - sx) * 4, dy = (py - sy) * 4; // 4 m per pixel
+                        const xDown = dx * cosW + dy * sinW;
+                        const yCross = -dx * sinW + dy * cosW;
+                        if (xDown < MIN_X) { continue; }
+                        const { sy: sigY, sz: sigZ } = sig(xDown, cls);
+                        const lat2 = Math.exp(-(yCross ** 2) / (2 * (sigY ** 2)));
+                        const vert2 = Math.exp(-(stackH ** 2) / (2 * (sigZ ** 2)));
+                        const conc = (1 / (Math.PI * Math.max(ws, MIN_WS) * sigY * sigZ)) * lat2 * vert2 * 1e6 * 100;
+                        if (conc < 0.02) continue;
+                        const t = clamp(Math.log10(conc + 1) / 3.5, 0, 1);
+                        const [r, g, b] = concColor(t);
+                        const alpha = Math.round(clamp(t * 255 * 1.4, 0, 235));
+                        for (let dy2 = 0; dy2 < STEP && py + dy2 < H; dy2++) {
+                            for (let dx2 = 0; dx2 < STEP && px + dx2 < W; dx2++) {
+                                const i = ((py + dy2) * W + (px + dx2)) * 4;
+                                pxData[i] = r; pxData[i + 1] = g; pxData[i + 2] = b; pxData[i + 3] = alpha;
+                            }
+                        }
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                // downwind axis
+                const axLen = Math.min(W, H) * 0.42;
+                ctx.beginPath(); ctx.moveTo(sx, sy);
+                ctx.lineTo(sx + cosW * axLen, sy + sinW * axLen);
+                ctx.strokeStyle = 'rgba(42,100,150,.5)'; ctx.lineWidth = 2; ctx.setLineDash([8, 5]);
+                ctx.stroke(); ctx.setLineDash([]);
+
+                // wind arrow
+                const wLen = 80;
+                const wx = sx - cosW * wLen, wy = sy - sinW * wLen;
+                drawArrow(ctx, wx, wy, sx, sy, '#2a6496', 3);
+                ctx.font = 'bold 12px IBM Plex Mono,monospace';
+                ctx.fillStyle = '#2a6496'; ctx.textAlign = 'center';
+                ctx.fillText(`Wind ${wd}°`, wx, wy - 12);
+
+                // source dot
+                ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#0a0c10'; ctx.fill();
+                ctx.fillStyle = '#f5f2eb'; ctx.font = 'bold 11px IBM Plex Mono,monospace';
+                ctx.textAlign = 'center'; ctx.fillText('S', sx, sy + 4);
+
+                // north indicator
+                drawArrow(ctx, W - 40, 60, W - 40, 30, '#7a7060', 2);
+                ctx.fillStyle = '#7a7060'; ctx.font = '12px Syne,sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('N', W - 40, 78);
+
+                // update readout
+                const { sy: sy1k, sz: sz1k } = sig(1000, cls);
+                document.getElementById('rb0_stab').textContent = cls;
+                document.getElementById('rb0_sy').textContent = fmt(sy1k, 1) + ' m';
+                document.getElementById('rb0_sz').textContent = fmt(sz1k, 1) + ' m';
+            }
+            draws[0] = draw;
+            ['s0wd', 's0ws', 's0stab', 's0h'].forEach(id => {
+                document.getElementById(id).addEventListener('input', draw);
+            });
+            draw();
+            document.getElementById('s0wd_v').textContent = '60°';
+            document.getElementById('s0ws_v').textContent = '3 m/s';
+            document.getElementById('s0h_v').textContent = '40 m';
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 1 — Distance & Bearing
+        // ═══════════════════════════════════════════════════
+        function initStep1() {
+            const canvas = document.getElementById('c1');
+            function draw() {
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const lat1 = 12.92, lon1 = 77.58;
+                const lat2 = +document.getElementById('s1lat2').value;
+                const lon2 = +document.getElementById('s1lon2').value;
+                const scale = clamp(H / ((13.1 - 12.7) * 111), 28, 80);
+                const cx = W / 2, cy = H / 2;
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+                // grid
+                ctx.strokeStyle = 'rgba(180,170,155,.2)'; ctx.lineWidth = 1;
+                for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+                // draw all stations
+                for (const st of STATIONS) {
+                    const { px, py } = toPixel(st.lat, st.lon, cx, cy, scale);
+                    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(122,112,96,.4)'; ctx.fill();
+                    ctx.fillStyle = 'rgba(122,112,96,.7)';
+                    ctx.font = '10px IBM Plex Mono,monospace'; ctx.textAlign = 'left';
+                    ctx.fillText(st.n.slice(0, 7), px + 7, py + 4);
+                }
+
+                // source
+                const { px: sx, py: sy } = toPixel(lat1, lon1, cx, cy, scale);
+                ctx.beginPath(); ctx.arc(sx, sy, 11, 0, Math.PI * 2);
+                ctx.fillStyle = '#3a8a5c'; ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('S', sx, sy + 4);
+
+                // receptor
+                const { px: rx, py: ry } = toPixel(lat2, lon2, cx, cy, scale);
+                ctx.beginPath(); ctx.arc(rx, ry, 11, 0, Math.PI * 2);
+                ctx.fillStyle = '#c84b2f'; ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('R', rx, ry + 4);
+
+                // distance line
+                ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry);
+                ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 2; ctx.setLineDash([]);
+                drawArrow(ctx, sx, sy, rx, ry, '#0a0c10', 2);
+
+                // midpoint label
+                const mx = (sx + rx) / 2, my = (sy + ry) / 2;
+                const d = hav(lat1, lon1, lat2, lon2);
+                const b = bear(lat1, lon1, lat2, lon2);
+                ctx.fillStyle = 'rgba(245,242,235,.9)';
+                ctx.fillRect(mx - 50, my - 22, 100, 22);
+                ctx.fillStyle = '#0a0c10'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`d = ${fmt(d, 2)} km`, mx, my - 6);
+
+                // north
+                drawArrow(ctx, W - 40, 60, W - 40, 30, '#7a7060', 2);
+                ctx.fillStyle = '#7a7060'; ctx.font = '12px Syne,sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('N', W - 40, 78);
+
+                // readout
+                document.getElementById('rb1_d').textContent = fmt(d, 3) + ' km';
+                document.getElementById('rb1_b').textContent = fmt(b, 1) + '°';
+            }
+            draws[1] = draw;
+            ['s1lat2', 's1lon2'].forEach(id => {
+                const el2 = document.getElementById(id);
+                const lbl = document.getElementById(id + '_v');
+                el2.addEventListener('input', () => { lbl.textContent = parseFloat(el2.value).toFixed(3); draw(); });
+            });
+            draw();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 2 — Wind frame projection
+        // ═══════════════════════════════════════════════════
+        function initStep2() {
+            const canvas = document.getElementById('c2');
+            function draw() {
+
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const bearing2 = +document.getElementById('s2bear').value;
+                const wd = +document.getElementById('s2wd').value;
+                const dist = +document.getElementById('s2dist').value * 1000; // m
+                const cx = W / 2, cy = H / 2;
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+                ctx.strokeStyle = 'rgba(180,170,155,.2)'; ctx.lineWidth = 1;
+                for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+                const scale = Math.min(W, H) * 0.38 / dist; // pixels per metre
+                const bearRad = d2r(bearing2 - 90); // canvas: 0=east
+                const windRad = d2r(wd - 90);
+
+                const rx = cx + dist * Math.cos(bearRad) * scale;
+                const ry = cy + dist * Math.sin(bearRad) * scale;
+
+                // downwind unit vector (from wind dir, TO direction)
+                const toRad = d2r(n360(wd + 180) - 90);
+                const ux = Math.cos(toRad), uy = Math.sin(toRad);
+                // crosswind
+                const vx = -uy, vy = ux;
+
+                // project receptor onto wind frame
+                const dx = rx - cx, dy = ry - cy;
+                const xDown = dx * ux + dy * uy;
+                const yCross = dx * vx + dy * vy;
+                const isDown = xDown > 0;
+
+                // draw downwind axis
+                const axLen = Math.min(W, H) * 0.38;
+                ctx.beginPath(); ctx.moveTo(cx - ux * axLen, cy - uy * axLen);
+                ctx.lineTo(cx + ux * axLen, cy + uy * axLen);
+                ctx.strokeStyle = 'rgba(42,100,150,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]);
+                ctx.stroke(); ctx.setLineDash([]);
+                // downwind label
+                ctx.fillStyle = '#2a6496'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('x (downwind)', cx + ux * axLen * 0.7, cy + uy * axLen * 0.7 - 12);
+
+                // crosswind axis
+                ctx.beginPath(); ctx.moveTo(cx - vx * axLen * 0.6, cy - vy * axLen * 0.6);
+                ctx.lineTo(cx + vx * axLen * 0.6, cy + vy * axLen * 0.6);
+                ctx.strokeStyle = 'rgba(58,138,92,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]);
+                ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = '#3a8a5c'; ctx.font = 'bold 11px IBM Plex Mono,monospace';
+                ctx.fillText('y (crosswind)', cx + vx * axLen * 0.55, cy + vy * axLen * 0.55 - 12);
+
+                // wind arrow
+                const wLen = 90;
+                const windDx = Math.cos(windRad), windDy = Math.sin(windRad);
+                drawArrow(ctx, cx - windDx * wLen, cy - windDy * wLen, cx, cy, '#2a6496', 3.5);
+                ctx.fillStyle = '#2a6496'; ctx.font = 'bold 12px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`Wind ${wd}°`, cx - windDx * wLen, cy - windDy * wLen - 14);
+
+                // bearing line
+                drawArrow(ctx, cx, cy, rx, ry, '#0a0c10', 2);
+                ctx.fillStyle = 'rgba(122,112,96,.7)'; ctx.font = '11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`Bearing ${bearing2}°`, (cx + rx) / 2, (cy + ry) / 2 - 10);
+
+                // x component
+                const xEndX = cx + xDown * ux, xEndY = cy + xDown * uy;
+                ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(xEndX, xEndY);
+                ctx.strokeStyle = '#2a6496'; ctx.lineWidth = 3; ctx.stroke();
+
+                // y component
+                ctx.beginPath(); ctx.moveTo(xEndX, xEndY); ctx.lineTo(rx, ry);
+                ctx.strokeStyle = '#3a8a5c'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
+                ctx.stroke(); ctx.setLineDash([]);
+
+                // source
+                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#0a0c10'; ctx.fill();
+                ctx.fillStyle = '#f5f2eb'; ctx.font = 'bold 10px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('S', cx, cy + 4);
+
+                // receptor
+                ctx.beginPath(); ctx.arc(rx, ry, 10, 0, Math.PI * 2);
+                ctx.fillStyle = isDown ? '#c84b2f' : '#888'; ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('R', rx, ry + 4);
+
+                // upwind label
+                if (!isDown) {
+                    ctx.fillStyle = '#c84b2f'; ctx.font = 'bold 13px Syne,sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText('UPWIND → T = 0', rx, ry - 20);
+                }
+
+                // labels
+                const xm = Math.round(xDown / scale);
+                const ym = Math.round(yCross / scale);
+                document.getElementById('rb2_x').textContent = (xm > 0 ? '+' : '') + xm + ' m';
+                document.getElementById('rb2_y').textContent = (ym >= 0 ? '+' : '') + ym + ' m';
+                document.getElementById('rb2_s').textContent = isDown ? 'DOWNWIND ✓' : 'UPWIND → T=0';
+                document.getElementById('rb2_s').style.color = isDown ? 'var(--hi3)' : 'var(--hi)';
+                document.getElementById('e2x').textContent = fmt(xDown / scale, 0) + ' m';
+                document.getElementById('e2y').textContent = fmt(yCross / scale, 0) + ' m';
+            }
+            draws[2] = draw;
+            wire('s2bear', '', v => v + '°', draw);
+            wire('s2wd', '', v => v + '°', draw);
+            wire('s2dist', '', v => parseFloat(v).toFixed(1), draw);
+            draw();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 3 — Sigma dispersion (vertical cross-section)
+        // ═══════════════════════════════════════════════════
+        function initStep3() {
+            const canvas = document.getElementById('c3');
+            function draw() {
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const cls = document.getElementById('s3stab').value;
+                const dist = +document.getElementById('s3dist').value * 1000;
+                const stackH2 = +document.getElementById('s3h').value;
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+                ctx.strokeStyle = 'rgba(180,170,155,.2)'; ctx.lineWidth = 1;
+                for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+                const groundY = H * 0.82;
+                const scaleZ = clamp((groundY - 40) / 200, 0.5, 3.5);
+                const stackX = 110;
+
+                // ground
+                ctx.fillStyle = 'rgba(58,50,40,.12)'; ctx.fillRect(0, groundY, W, H - groundY);
+                ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(W, groundY);
+                ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 2.5; ctx.stroke();
+                ctx.fillStyle = '#7a7060'; ctx.font = '12px IBM Plex Mono,monospace'; ctx.textAlign = 'start';
+                ctx.fillText('Ground level (z = 0)', 8, groundY - 6);
+
+                // height scale
+                for (let z = 0; z <= 200; z += 50) {
+                    const py = groundY - z * scaleZ;
+                    ctx.strokeStyle = 'rgba(122,112,96,.3)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+                    ctx.beginPath(); ctx.moveTo(60, py); ctx.lineTo(W - 20, py); ctx.stroke(); ctx.setLineDash([]);
+                    ctx.fillStyle = '#7a7060'; ctx.font = '10px IBM Plex Mono,monospace'; ctx.textAlign = 'end';
+                    ctx.fillText(z + ' m', 55, py + 4);
+                }
+
+                // stack
+                const Hpx = stackH2 * scaleZ;
+                ctx.beginPath(); ctx.moveTo(stackX, groundY); ctx.lineTo(stackX, groundY - Hpx);
+                ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 10; ctx.stroke();
+                ctx.fillStyle = '#0a0c10'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('Stack', stackX, groundY + 16);
+                ctx.fillStyle = '#c84b2f'; ctx.font = 'bold 11px IBM Plex Mono,monospace';
+                ctx.fillText(`H = ${stackH2} m`, stackX, groundY - Hpx - 10);
+
+                // release level
+                ctx.beginPath(); ctx.moveTo(stackX, groundY - Hpx); ctx.lineTo(W - 20, groundY - Hpx);
+                ctx.strokeStyle = 'rgba(200,75,47,.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+                ctx.stroke(); ctx.setLineDash([]);
+
+                // sigma_z
+                const { sy: sigY, sz: sigZ } = sig(dist, cls);
+                const szPx = sigZ * scaleZ;
+                const centerY = groundY - Hpx;
+                const plumeCX = W * 0.55;
+
+                // plume envelope (gaussian envelope from -2σ to +2σ)
+                // draw as set of horizontal slices
+                for (let dz = -sigZ * 2.5; dz <= sigZ * 2.5; dz += sigZ * 0.08) {
+                    const py = centerY + dz * scaleZ;
+                    if (py < 20 || py > groundY) continue;
+                    const gv = Math.exp(-(dz ** 2) / (2 * (sigZ ** 2)));
+                    const halfW = sigY * 0.35 * gv;
+                    const alpha = clamp(gv * 0.6, 0, 0.55);
+                    ctx.fillStyle = `rgba(96,164,250,${alpha})`;
+                    ctx.fillRect(plumeCX - halfW * 1.5, py - scaleZ * sigZ * 0.04, halfW * 3, Math.max(2, scaleZ * sigZ * 0.09));
+                }
+
+                // sigma_z bracket (vertical)
+                const bx = plumeCX + sigY * 0.7;
+                ctx.beginPath(); ctx.moveTo(bx, centerY); ctx.lineTo(bx, centerY + szPx);
+                ctx.strokeStyle = '#3a8a5c'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(bx - 6, centerY); ctx.lineTo(bx + 6, centerY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(bx - 6, centerY + szPx); ctx.lineTo(bx + 6, centerY + szPx); ctx.stroke();
+                ctx.fillStyle = '#3a8a5c'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'start';
+                ctx.fillText(`σz = ${fmt(sigZ, 1)} m`, bx + 10, (centerY + centerY + szPx) / 2 + 4);
+
+                // sigma_y bracket (horizontal at centreline height)
+                const by = centerY;
+                ctx.beginPath(); ctx.moveTo(plumeCX - sigY * 0.6, by); ctx.lineTo(plumeCX + sigY * 0.6, by);
+                ctx.strokeStyle = '#2a6496'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(plumeCX - sigY * 0.6, by - 6); ctx.lineTo(plumeCX - sigY * 0.6, by + 6); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(plumeCX + sigY * 0.6, by - 6); ctx.lineTo(plumeCX + sigY * 0.6, by + 6); ctx.stroke();
+                ctx.fillStyle = '#2a6496'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`σy = ${fmt(sigY, 1)} m`, plumeCX, by - 10);
+
+                // vertical factor
+                const ev = Math.exp(-(stackH2 ** 2) / (2 * (sigZ ** 2)));
+                ctx.fillStyle = 'rgba(200,75,47,.12)';
+                ctx.fillRect(plumeCX - 30, groundY - 10, 60, 10);
+                ctx.fillStyle = '#c84b2f'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`ground conc ∝ ${fmt(ev, 4)}`, plumeCX, groundY - 14);
+
+                // receptor at ground
+                ctx.beginPath(); ctx.arc(plumeCX, groundY - 5, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#c84b2f'; ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 9px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('R', plumeCX, groundY - 1);
+
+                // distance label
+                ctx.fillStyle = '#7a7060'; ctx.font = '11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`x = ${fmt(dist / 1000, 1)} km downwind`, plumeCX, groundY + 18);
+
+                document.getElementById('rb3_sy').textContent = fmt(sigY, 1) + ' m';
+                document.getElementById('rb3_sz').textContent = fmt(sigZ, 1) + ' m';
+                document.getElementById('rb3_ev').textContent = fmt(ev, 4);
+                document.getElementById('e3sy').textContent = fmt(sigY, 1) + ' m';
+                document.getElementById('e3sz').textContent = fmt(sigZ, 1) + ' m';
+                document.getElementById('e3ev').textContent = fmt(ev, 4);
+                document.getElementById('e3h').textContent = stackH2 + ' m';
+            }
+            draws[3] = draw;
+            ['s3stab', 's3dist', 's3h'].forEach(id => {
+                const el2 = document.getElementById(id);
+                el2.addEventListener('input', () => {
+                    const lbl = document.getElementById(id + '_v');
+                    if (lbl && id !== 's3stab') lbl.textContent = parseFloat(el2.value).toFixed(id === 's3h' ? 0 : 1) + (id === 's3h' ? ' m' : '');
+                    draw();
+                });
+            });
+            draw();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 4 — T element heat map (click to move receptor)
+        // ═══════════════════════════════════════════════════
+        function initStep4() {
+            const canvas = document.getElementById('c4');
+            let recPx = { x: null, y: null };
+
+            function draw() {
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const wd = +document.getElementById('s4wd').value;
+                const ws = +document.getElementById('s4ws').value;
+                const cls = document.getElementById('s4stab').value;
+                const stackH2 = +document.getElementById('s4h').value;
+                if (recPx.x === null) { recPx = { x: W * 0.65, y: H * 0.38 }; }
+
+                const sx = W / 2, sy = H / 2;
+                const toRad = d2r(n360(wd + 180));
+                const cosW = Math.cos(toRad), sinW = Math.sin(toRad);
+                const M_PER_PX = 5;
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+
+                // T field
+                const imgData = ctx.getImageData(0, 0, W, H);
+                const pxData = imgData.data;
+                let maxT = 0;
+                const cache = [];
+                for (let py2 = 0; py2 < H; py2 += 2) {
+                    for (let px2 = 0; px2 < W; px2 += 2) {
+                        const dx = (px2 - sx) * M_PER_PX, dy = (py2 - sy) * M_PER_PX;
+                        const xDown = dx * cosW + dy * sinW;
+                        const yCross = -dx * sinW + dy * cosW;
+                        const T = tElem(xDown, yCross, ws, stackH2, cls);
+                        cache.push(T);
+                        if (T > maxT) maxT = T;
+                    }
+                }
+                let k = 0;
+                for (let py2 = 0; py2 < H; py2 += 2) {
+                    for (let px2 = 0; px2 < W; px2 += 2) {
+                        const T = cache[k++];
+                        if (T < 1e-6) continue;
+                        const t = clamp(Math.log10(T * 1e-0 + 1) / Math.log10(maxT + 1), 0, 1);
+                        const [r, g, b] = concColor(t);
+                        const al = Math.round(clamp(t * 240, 0, 240));
+                        for (let j = 0; j < 2; j++)for (let i = 0; i < 2; i++) {
+                            const idx = ((py2 + j) * W + (px2 + i)) * 4;
+                            if (idx < pxData.length - 3) { pxData[idx] = r; pxData[idx + 1] = g; pxData[idx + 2] = b; pxData[idx + 3] = al; }
+                        }
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                // wind arrow
+                const wLen = 75;
+                const wRad = d2r(wd - 90);
+                drawArrow(ctx, sx - Math.cos(wRad) * wLen, sy - Math.sin(wRad) * wLen, sx, sy, '#2a6496', 3);
+                ctx.fillStyle = '#2a6496'; ctx.font = 'bold 11px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`Wind ${wd}°`, sx - Math.cos(wRad) * wLen, sy - Math.sin(wRad) * wLen - 12);
+
+                // source
+                ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#0a0c10'; ctx.fill();
+                ctx.fillStyle = '#f5f2eb'; ctx.font = 'bold 10px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('S', sx, sy + 4);
+
+                // receptor (movable)
+                const rx = recPx.x, ry = recPx.y;
+                const dx2 = (rx - sx) * M_PER_PX, dy2 = (ry - sy) * M_PER_PX;
+                const xDown2 = dx2 * cosW + dy2 * sinW;
+                const yCross2 = -dx2 * sinW + dy2 * cosW;
+                const T2 = tElem(xDown2, yCross2, ws, stackH2, cls);
+                const { sy: sigY, sz: sigZ } = sig(Math.max(xDown2, MIN_X), cls);
+                const latF = xDown2 > MIN_X ? Math.exp(-(yCross2 ** 2) / (2 * (sigY ** 2))) : 0;
+                const vertF = xDown2 > MIN_X ? Math.exp(-(stackH2 ** 2) / (2 * (sigZ ** 2))) : 0;
+                const dil = xDown2 > MIN_X ? 1 / (Math.PI * Math.max(ws, MIN_WS) * sigY * sigZ) : 0;
+
+                ctx.beginPath(); ctx.arc(rx, ry, 11, 0, Math.PI * 2);
+                ctx.fillStyle = T2 > 0 ? '#c84b2f' : '#888'; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 9px IBM Plex Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText('R', rx, ry + 4);
+
+                // dashed line
+                ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry);
+                ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+
+                // instruction
+                ctx.fillStyle = 'rgba(122,112,96,.8)'; ctx.font = '11px Lora,serif'; ctx.textAlign = 'center';
+                ctx.fillText('Click anywhere to move receptor R', W / 2, H - 14);
+
+                document.getElementById('rb4_T').textContent = T2.toExponential(3);
+                document.getElementById('rb4_lat').textContent = fmt(latF, 5);
+                document.getElementById('rb4_vert').textContent = fmt(vertF, 5);
+                document.getElementById('e4T').textContent = T2.toExponential(3);
+                document.getElementById('e4lat').textContent = fmt(latF, 5);
+                document.getElementById('e4vert').textContent = fmt(vertF, 5);
+                document.getElementById('e4dil').textContent = dil.toExponential(3);
+            }
+
+            canvas.addEventListener('click', e => {
+                const rect = canvas.getBoundingClientRect();
+                recPx = { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
+                draw();
+            });
+            draws[4] = draw;
+            ['s4wd', 's4ws', 's4stab', 's4h'].forEach(id => {
+                document.getElementById(id).addEventListener('input', draw);
+            });
+            draw();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  STEP 5 — Full T matrix heatmap
+        // ═══════════════════════════════════════════════════
+        function initStep5() {
+            const canvas = document.getElementById('c5');
+            function draw() {
+                const ctx = resizeCanvas(canvas);
+                if (!ctx) return;
+                const W = canvas.width, H = canvas.height;
+                const wd = +document.getElementById('s5wd').value;
+                const ws = +document.getElementById('s5ws').value;
+                const cls = document.getElementById('s5stab').value;
+
+                // build T matrix
+                const T = [];
+                let maxT = 0, zeros = 0;
+                for (let i = 0; i < N; i++) {
+                    T.push([]);
+                    for (let j = 0; j < N; j++) {
+                        const rec = STATIONS[i], src = STATIONS[j];
+                        const d_km = hav(src.lat, src.lon, rec.lat, rec.lon);
+                        const d_m = Math.max(d_km, 0.01) * 1000;
+                        const b = bear(src.lat, src.lon, rec.lat, rec.lon);
+                        const dRad = d2r(wd - b);
+                        const xDown = d_m * Math.cos(dRad);
+                        const yCross = d_m * Math.sin(dRad);
+                        const Tv = tElem(xDown, yCross, ws, 20, cls);
+                        T[i].push(Tv);
+                        if (Tv > maxT) maxT = Tv;
+                        if (Tv === 0) zeros++;
+                    }
+                }
+
+                ctx.fillStyle = '#f0ece1'; ctx.fillRect(0, 0, W, H);
+
+                const pad = 60, labelW = 90;
+                const gridW = W - pad - labelW - 20;
+                const gridH = H - pad - 50;
+                const cellW = gridW / N, cellH = gridH / N;
+
+                // cells
+                for (let i = 0; i < N; i++) {
+                    for (let j = 0; j < N; j++) {
+                        const v = T[i][j];
+                        const t = maxT > 0 ? clamp(v / maxT, 0, 1) : 0;
+                        const x = labelW + j * cellW + pad / 2;
+                        const y = 50 + i * cellH;
+                        let r, g, b;
+                        if (v === 0) { r = 230; g = 225; b = 215; }
+                        else {
+                            const s = clamp(Math.log10(v + 1) / Math.log10(maxT + 1), 0, 1);
+                            [r, g, b] = concColor(s);
+                        }
+                        ctx.fillStyle = `rgb(${r},${g},${b})`;
+                        ctx.fillRect(x, y, cellW - 1.5, cellH - 1.5);
+                    }
+                }
+
+                // row labels (receptors)
+                ctx.fillStyle = '#3a3228'; ctx.font = '9.5px IBM Plex Mono,monospace'; ctx.textAlign = 'end';
+                for (let i = 0; i < N; i++) {
+                    ctx.fillText(STATIONS[i].n.slice(0, 9), labelW + pad / 2 - 5, 50 + i * cellH + cellH / 2 + 4);
+                }
+                // col labels (sources)
+                ctx.save(); ctx.translate(labelW + pad / 2, 46);
+                for (let j = 0; j < N; j++) {
+                    ctx.save(); ctx.translate(j * cellW + cellW / 2, 0);
+                    ctx.rotate(-Math.PI / 2.8);
+                    ctx.fillStyle = '#3a3228'; ctx.font = '9.5px IBM Plex Mono,monospace'; ctx.textAlign = 'start';
+                    ctx.fillText(STATIONS[j].n.slice(0, 9), 0, 0);
+                    ctx.restore();
+                }
+                ctx.restore();
+
+                // axis labels
+                ctx.fillStyle = '#7a7060'; ctx.font = 'bold 11px Syne,sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('SOURCE  j  →', labelW + pad / 2 + gridW / 2, H - 10);
+                ctx.save(); ctx.translate(10, 50 + gridH / 2); ctx.rotate(-Math.PI / 2);
+                ctx.fillText('RECEPTOR  i  ↓', 0, 0); ctx.restore();
+
+                // colour scale
+                const barX = W - 18, barY = 50, barH2 = gridH;
+                for (let y = 0; y < barH2; y++) {
+                    const t = 1 - y / barH2;
+                    const [r, g, b] = concColor(t);
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+                    ctx.fillRect(barX, barY + y, 12, 1);
+                }
+                ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.strokeRect(barX, barY, 12, barH2);
+                ctx.fillStyle = '#3a3228'; ctx.font = '9px IBM Plex Mono,monospace'; ctx.textAlign = 'start';
+                ctx.fillText('High', barX + 16, barY + 10);
+                ctx.fillText('0', barX + 16, barY + barH2);
+
+                // zero overlay
+                ctx.fillStyle = 'rgba(180,170,155,.18)';
+                for (let i = 0; i < N; i++)for (let j = 0; j < N; j++) {
+                    if (T[i][j] === 0) {
+                        const x = labelW + j * cellW + pad / 2, y = 50 + i * cellH;
+                        ctx.fillRect(x, y, cellW - 1.5, cellH - 1.5);
+                        ctx.fillStyle = 'rgba(122,112,96,.4)'; ctx.font = '8px IBM Plex Mono,monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('0', x + cellW / 2 - 0.5, y + cellH / 2 + 3);
+                        ctx.fillStyle = 'rgba(180,170,155,.18)';
+                    }
+                }
+
+                // diagonal highlight
+                ctx.strokeStyle = 'rgba(200,75,47,.5)'; ctx.lineWidth = 1.5;
+                for (let k = 0; k < N; k++) {
+                    const x = labelW + k * cellW + pad / 2, y = 50 + k * cellH;
+                    ctx.strokeRect(x, y, cellW - 1.5, cellH - 1.5);
+                }
+
+                // approximate condition number from max/near-zero
+                const allT = T.flat().filter(v => v > 0).sort((a, b) => a - b);
+                const kappa = allT.length > 1 ? allT[allT.length - 1] / allT[0] : Infinity;
+                document.getElementById('rb5_max').textContent = maxT.toExponential(3);
+                document.getElementById('rb5_z').textContent = zeros + '/' + N * N;
+                document.getElementById('rb5_k').textContent = isFinite(kappa) ? kappa.toExponential(2) : '∞';
+                document.getElementById('e5max').textContent = maxT.toExponential(3);
+                document.getElementById('e5z').textContent = zeros + '/' + N * N;
+            }
+            draws[5] = draw;
+            ['s5wd', 's5ws', 's5stab'].forEach(id => { document.getElementById(id).addEventListener('input', draw); });
+            draw();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  SHARED: draw arrow
+        // ═══════════════════════════════════════════════════
+        function drawArrow(ctx, x1, y1, x2, y2, color, lw = 2, headLen = 12) {
+            const ang = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save();
+            ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(ang - Math.PI / 6), y2 - headLen * Math.sin(ang - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(ang + Math.PI / 6), y2 - headLen * Math.sin(ang + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+            ctx.restore();
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  SLIDER READOUT WIRING (remaining)
+        // ═══════════════════════════════════════════════════
+        function wireSimple(id, suffix) {
+            const el2 = document.getElementById(id);
+            const lbl = document.getElementById(id + '_v');
+            if (!el2 || !lbl) return;
+            const upd = () => lbl.textContent = parseFloat(el2.value).toFixed(typeof suffix === 'function' ? 0 : 0) + suffix;
+            el2.addEventListener('input', upd); upd();
+        }
+        wireSimple('s0wd', '°'); wireSimple('s0ws', ' m/s'); wireSimple('s0h', ' m');
+        wireSimple('s4wd', '°'); wireSimple('s4ws', ' m/s'); wireSimple('s4h', ' m');
+        wireSimple('s5wd', '°'); wireSimple('s5ws', ' m/s');
+        wireSimple('s3dist', ''); wireSimple('s3h', ' m');
+
+        // ── Start all steps ──────────────────────────────
+        initStep0();
+        initStep1();
+        initStep2();
+        initStep3();
+        initStep4();
+        initStep5();
+
+        // ── Resize handler ───────────────────────────────
+        window.addEventListener('resize', () => {
+            if (draws[activeTab]) draws[activeTab]();
+        });
+    </script>
+</body>
+
+</html>
