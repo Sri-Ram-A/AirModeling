@@ -1,23 +1,23 @@
 # %%
 """
 ```bash
-=============================================================================  
-STAGE 1 — AIR MODELLING ATTRIBUTION  
-Gaussian Plume Transport Matrix → Classical & Bayesian Source Inversion  
-Model: C = T · Q  
-  C  (n_stations,)       — observed concentration vector  [µg/m³]  
-  T  (n_stations, n_src) — transport matrix (Gaussian Plume)  [µg/m³ per g/s]  
-  Q  (n_src,)            — unknown emission rates  [g/s]  
-References:  
-  Seinfeld & Pandis, "Atmospheric Chemistry and Physics", 3rd ed., 2016  
-  Pasquill & Smith, "Atmospheric Diffusion", 3rd ed., 1983  
-  Turner, "Workbook of Atmospheric Dispersion Estimates", EPA, 1970  
-=============================================================================  
+=============================================================================
+STAGE 1 — AIR MODELLING ATTRIBUTION
+Gaussian Plume Transport Matrix → Classical & Bayesian Source Inversion
+Model: C = T · Q
+  C  (n_stations,)       — observed concentration vector  [µg/m³]
+  T  (n_stations, n_src) — transport matrix (Gaussian Plume)  [µg/m³ per g/s]
+  Q  (n_src,)            — unknown emission rates  [g/s]
+References:
+  Seinfeld & Pandis, "Atmospheric Chemistry and Physics", 3rd ed., 2016
+  Pasquill & Smith, "Atmospheric Diffusion", 3rd ed., 1983
+  Turner, "Workbook of Atmospheric Dispersion Estimates", EPA, 1970
+=============================================================================
 ```
 """
 
 # %%
-# ! ipynb-py-convert 1_tp_matrix.ipynb
+# ! ipynb-py-convert 1_tp_matrix.ipynb 1_tp_matrix.py
 
 # %%
 from pathlib import Path
@@ -25,7 +25,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
-import sympy as sp
 from sympy import (
     symbols,
     exp,
@@ -38,6 +37,17 @@ from sympy import (
     atan2,
     init_printing,
 )
+from IPython.display import display, Math
+from tqdm import tqdm
+from collections import Counter
+from sympy import Mod, asin
+import networkx as nx
+import math
+import arviz as az
+import pymc as pm
+from sympy import log
+from scipy.optimize import nnls
+from scipy.linalg import lstsq, svd
 
 # Display settings
 init_printing()
@@ -47,7 +57,6 @@ x = symbols("x")
 sqrt(x)
 
 # %%
-from IPython.display import display
 
 POLLUTANT = "pm25"  # change to pm10, no2, etc. to explore
 H_STACK = 20.0  # effective stack / emission height [m]
@@ -60,7 +69,7 @@ STATIONS_FILE = DATA_DIR / "raw" / "stations.csv"
 stations_df = pd.read_csv(STATIONS_FILE)
 display(stations_df.head(5))
 STATION_NAMES = stations_df["StationName"].unique().tolist()
-print("Station names:\n",STATION_NAMES)
+print("Station names:\n", STATION_NAMES)
 
 # %%
 # Block 1 — LOAD DATA (with graceful synthetic fallback)
@@ -69,7 +78,9 @@ df_full = pd.read_csv(MASTER_DATASET_FILE, parse_dates=["time"])
 df_full = df_full[df_full["station_name"].isin(STATION_NAMES)]
 display(df_full.head(3))
 display(df_full.dtypes)
-print(f"df.dtypes[{POLLUTANT}]",df_full.dtypes[POLLUTANT]) # Pandas Series object can be acessed like normal python dictionary
+print(
+    f"df.dtypes[{POLLUTANT}]", df_full.dtypes[POLLUTANT]
+)  # Pandas Series object can be acessed like normal python dictionary
 
 # %%
 """
@@ -177,21 +188,17 @@ display(filtered_df.isnull().sum())
 # %%
 lats = np.array(stations_df.Latitude)
 lons = np.array(stations_df.Longitude)
-print("Latitude",lats)
-print("Longitude",lons)
+print("Latitude", lats)
+print("Longitude", lons)
 
 # %%
 """
-# 2. Gaussian Plume Model  
+# 2. Symbolic rep - *Gaussian Plume Model*  
 """
 
 # %%
-from IPython.display import display, Math
-from sympy import symbols
 
-print(" BLOCK 2: GAUSSIAN PLUME MODEL — SYMBOLIC DERIVATION")
-
-# 2.1 Symbol definitions -
+# 2.1 Symbol definitions
 # Giving symbols proper LaTeX representations makes display() look professional
 x, y, z, H, u = symbols("x y z H u", positive=True)
 Q_src = symbols("Q", positive=True)  # emission rate [g/s]
@@ -274,7 +281,6 @@ for cls, v in PG_COEFFS.items():
 # %%
 # Block 3 — NUMERICAL HELPERS (haversine, bearing, stability, σ, T element)
 # look into bearing.html and visualize.html
-from sympy import Mod, asin
 
 # Physical thresholds — tunable constants, not magic numbers
 MIN_WIND_SPEED_MS = 0.5  # [m/s]  calm-wind threshold; below this the plume equation breaks down physically (Pasquill-Gifford is only valid u ≥ 0.5)
@@ -446,8 +452,12 @@ def transport_element(
 
 
 # %%
-from tqdm import tqdm
-from collections import Counter
+"""
+# 3. Calculate the Transport Matrix - *for particular pollutant*
+"""
+
+# %%
+
 
 # Use per-source wind (wind at the SOURCE station drives transport)
 is_day = 6 <= hour <= 18
@@ -578,7 +588,11 @@ for i, s in enumerate(STATION_NAMES):
     print(f"{s:30s}: {WD[i]:6.1f}°")
 
 # %%
-import networkx as nx
+"""
+# 4. Visualizing transport matrix - *as a Graph*
+"""
+
+# %%
 
 # Create directed graph of transport
 G = nx.DiGraph()
@@ -590,9 +604,6 @@ for i, rec in enumerate(STATION_NAMES):
 print(f"Transport edges: {G.number_of_edges()}")
 
 # %%
-import matplotlib.pyplot as plt
-import networkx as nx
-import math
 
 # Create position dictionary from lat/lon
 pos = {}
@@ -656,138 +667,13 @@ plt.show()
 
 # %%
 """
-# The Atmospheric Inverse Problem: Deconstructing $C = T \cdot Q$
-
-In atmospheric science, tracing pollutants back to their origin requires shifting from a **forward simulation** (predicting dispersion from known stacks) to an **inverse simulation** (estimating unknown emission sources using sensor observations).
-
-
-## 1. Mathematical Formulation
-
-Let the monitoring network consist of $r$ discrete receptor locations (sensors) and $s$ potential emission sources. The steady-state relationship is governed by the linear system:
-
-$$\mathbf{C} = \mathbf{T} \cdot \mathbf{Q}$$
-
-### Vector and Matrix Dimensions
-
-* **The Observation Vector ($\mathbf{C} \in \mathbb{R}^{r \times 1}$):**
-A column vector containing the measured mass concentrations ($\mu\text{g/m}^3$) at each receptor $i$.
-
-$$\mathbf{C} = \begin{bmatrix} C_1 \\ C_2 \\ \vdots \\ C_r \end{bmatrix}$$
-
-
-* **The Source Emission Vector ($\mathbf{Q} \in \mathbb{R}^{s \times 1}$):**
-A column vector containing the unknown mass emission rates ($\text{g/s}$) for each source $j$.
-
-$$\mathbf{Q} = \begin{bmatrix} Q_1 \\ Q_2 \\ \vdots \\ Q_s \end{bmatrix}$$
-
-
-* **The Atmospheric Transport Matrix ($\mathbf{T} \in \mathbb{R}^{r \times s}$):**
-A sensitivity matrix where each element $T_{ij}$ represents the dilution physics between source $j$ and receptor $i$.
-$$\mathbf{T} = \begin{bmatrix}
-T_{11} & T_{12} & \dots & T_{1s} \  
-T_{21} & T_{22} & \dots & T_{2s} \  
-\vdots & \vdots & \ddots & \vdots \
-T_{r1} & T_{r2} & \dots & T_{rs}
-\end{bmatrix}$$
-
-> **Physical Interpretation:** Element $T_{ij}$ defines the concentration impact observed at receptor $i$ if source $j$ emits at an absolute rate of exactly $1\text{ g/s}$.
-
----
-
-## 2. Why Direct Inversion Fails (Ill-Conditioning)
-
-We cannot simply calculate $\mathbf{Q} = \mathbf{T}^{-1}\mathbf{C}$. The system matrix $\mathbf{T}$ is highly **ill-conditioned**, meaning its condition number is exceptionally large:
-
-$$\kappa(\mathbf{T}) = \frac{\sigma_{\max}}{\sigma_{\min}} \gg 1$$
-
-This severe numerical instability stems from five distinct physical and geometric factors:
-
-* **Upwind Dead Zones:** If a sensor $i$ sits upwind of source $j$, the element $T_{ij}$ is identically $0$. This generates rows filled with near-zero coefficients, compressing the rank of the matrix.
-* **Scale Divergence:** Transport couplings decrease exponentially with downwind distance. Elements in $\mathbf{T}$ span multiple orders of magnitude, pairing giant values (near-field receptors) with microscopic decimals (far-field receptors).
-* **Atmospheric Anisotropy:** Prevailing wind directions break spatial symmetry. Receptors aligned along the core wind vector register massive sensitivity signals, while crosswind receptors register nothing.
-* **Dimensional Mismatch:** The monitoring framework is rarely perfectly square ($r \neq s$). An over-determined system ($r > s$) lacks an exact algebraic solution, while an under-determined system ($r < s$) contains infinite valid solutions.
-* **Noise Amplification:** Environmental observations contain sensor noise and background fluctuations ($\mathbf{C}_{\text{obs}} = \mathbf{C} + \boldsymbol{\epsilon}$). Directly inverting an ill-conditioned matrix multiplies this tiny error vector $\boldsymbol{\epsilon}$, causing the calculated values in $\mathbf{Q}$ to oscillate wildly into unphysical domains.
-
----
-
-## 3. Mathematical Inversion Paradigms
-
-### Method A: Unconstrained Least Squares
-
-When the system has more sensors than sources ($r > s$), we look for an optimal compromise by minimizing the residual $L_2$ norm:
-
-$$\hat{\mathbf{Q}} = \arg\min_{\mathbf{Q}} \left\| \mathbf{C} - \mathbf{T}\mathbf{Q} \right\|^2$$
-
-* **Limitation:** This method ignores physical boundaries. Because of measurement noise and calculation instability, it frequently outputs negative emission values ($\hat{Q}_j < 0$), which are physically impossible for physical smokestacks.
-
-### Method B: Non-Negative Least Squares (NNLS)
-
-To enforce physical consistency, we introduce a strict inequality constraint:
-
-$$\hat{\mathbf{Q}} = \arg\min_{\mathbf{Q}} \left\| \mathbf{C} - \mathbf{T}\mathbf{Q} \right\|^2 \quad \text{subject to} \quad \mathbf{Q} \ge 0$$
-
-* **Mechanism:** This turns the linear problem into an optimization task solved via active-set or interior-point algorithms, forcing impossible negative source elements to zero.
-
-### Method C: Tikhonov Regularization (Ridge Regression)
-
-To combat numerical instability, Tikhonov regularization stabilizes the inversion by adding a penalty term to the objective function. This suppresses unnaturally large values in $\mathbf{Q}$:
-
-$$\hat{\mathbf{Q}} = \arg\min_{\mathbf{Q}} \left( \left\| \mathbf{C} - \mathbf{T}\mathbf{Q} \right\|^2 + \lambda \left\| \mathbf{Q} \right\|^2 \right)$$
-
-The scalar $\lambda > 0$ controls the balance between matching the observation data and keeping the solution smooth.
-
-#### The Regularized Normal Equations
-
-Taking the gradient with respect to $\mathbf{Q}$ and setting it to zero yields the regularized normal equations:
-
-$$(\mathbf{T}^T\mathbf{T} + \lambda \mathbf{I}_s)\hat{\mathbf{Q}} = \mathbf{T}^T\mathbf{C}$$
-
-Where $\mathbf{I}_s$ is an $s \times s$ identity matrix. Adding $\lambda \mathbf{I}_s$ shifts the eigenvalues of the system away from zero, making the matrix invertible even if $\mathbf{T}^T\mathbf{T}$ is singular.
-
-#### Closed-Form Solution
-
-$$\hat{\mathbf{Q}} = (\mathbf{T}^T\mathbf{T} + \lambda \mathbf{I}_s)^{-1}\mathbf{T}^T\mathbf{C}$$
-
----
-
-## 4. Spectral Decomposition & Truncated SVD
-
-To see exactly how regularizations protect the model from noise, we decompose the transport matrix using **Singular Value Decomposition (SVD)**:
-
-$$\mathbf{T} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^T$$
-
-### Structural Component Dimensions
-
-* $\mathbf{U} \in \mathbb{R}^{r \times r}$ is an orthogonal matrix whose columns represent the left singular vectors (spatial patterns across the receptors).
-* $\mathbf{V} \in \mathbb{R}^{s \times s}$ is an orthogonal matrix whose columns represent the right singular vectors (spatial patterns across the emission sources).
-* $\boldsymbol{\Sigma} \in \mathbb{R}^{r \times s}$ is a diagonal matrix containing sorted singular values: $\sigma_1 \ge \sigma_2 \ge \dots \ge \sigma_{\min} \ge 0$.
-
-### The Moore-Penrose Pseudoinverse Danger
-
-The standard pseudoinverse $\mathbf{T}^{+}$ maps the solution as:
-
-$$\mathbf{T}^{+} = \mathbf{V}\boldsymbol{\Sigma}^{+}\mathbf{U}^T \implies \hat{\mathbf{Q}} = \sum_{k=1}^{\min(r,s)} \frac{\mathbf{u}_k^T \mathbf{C}}{\sigma_k} \mathbf{v}_k$$
-
-> **The Root of Instability:** If a singular value $\sigma_k$ is very small, its reciprocal $\frac{1}{\sigma_k}$ blows up toward infinity. Any high-frequency measurement noise projected onto that vector $\mathbf{u}_k$ completely takes over the solution.
-
-### The Truncated SVD Solution
-
-To prevent this blow-up, Truncated SVD discards weak singular modes below a chosen index threshold $k = k_{\text{trunc}}$:
-
-$$\boldsymbol{\Sigma}_{\mathrm{trunc}}^{+} = \operatorname{diag}\left(\frac{1}{\sigma_1}, \frac{1}{\sigma_2}, \dots, \frac{1}{\sigma_{k_{\text{trunc}}}}, 0, \dots, 0\right)$$
-
-$$\hat{\mathbf{Q}}_{\mathrm{trunc}} = \mathbf{V}\boldsymbol{\Sigma}_{\mathrm{trunc}}^{+}\mathbf{U}^T\mathbf{C}$$
-
-This hard truncation filters out the high-frequency numerical noise, preserving the core stability of the inversion at the cost of smoothing out fine spatial details.
+# 5. Calulation using - *traditional methods*
 """
 
-# %%
-from scipy.optimize import nnls
-from scipy.linalg import lstsq, svd
 
 # %%
-# Block 7 — CLASSICAL SOLVERS
-Q_true = None    
+# 7.1 Classic Least Squares
+Q_true = None
 Q_lstsq, res_lstsq, rank_lstsq, sv_lstsq = lstsq(T_matrix, C_obs)
 print("[Method 1]  scipy.linalg.lstsq  (minimum-norm least squares)")
 print(T_matrix.shape)
@@ -803,6 +689,7 @@ print("[Method 2]  scipy.optimize.nnls  (non-negative constraint)")
 print(f"Residual norm ||C - T·Q||: {res_nnls:.4f}")
 print(f"Negative Q entries: {(Q_nnls < 0).sum()}  ✓")
 print(f"Zero Q entries    : {(Q_nnls == 0).sum()}  (stations with no attribution)")
+
 
 # %%
 #  7.3  Tikhonov regularisation
@@ -823,6 +710,7 @@ print(f"[Method 3]  Tikhonov regularisation  (λ = {LAMBDA})")
 print(f"  ||C - T·Q||: {np.linalg.norm(C_obs - T_matrix @ Q_tikh):.4f}")
 print(f"  Negative Q entries: {(Q_tikh < 0).sum()}")
 
+
 # %%
 #  7.4  Truncated SVD
 def truncated_svd_solve(T, C, n_components=None, thresh_ratio=1e-3):
@@ -842,6 +730,10 @@ print(f"||C - T·Q||: {np.linalg.norm(C_obs - T_matrix @ Q_svd):.4f}")
 print(f"Negative Q entries: {(Q_svd < 0).sum()}")
 
 # %%
+# For a 1D array, this prints each element formatted to 2 decimal places
+print([f"{val:.2f}" for val in Q_lstsq])
+
+# %%
 #  7.5  Comparison table
 methods = ["lstsq", "NNLS", "Tikhonov", "TruncSVD"]
 Q_all = [Q_lstsq, Q_nnls, Q_tikh, Q_svd]
@@ -854,7 +746,7 @@ if Q_true is not None:
     df_Q["Q_true"] = Q_true
 
 print("Inferred Q per station (g/s):")
-display(df_Q[methods].round(4))
+display(df_Q)
 
 print("Residuals  ||C - TQ||  per method:")
 for m, Q in zip(methods, Q_all):
@@ -965,7 +857,7 @@ print("  Saved: fig2_classical_solvers.png")
 plt.show()
 
 # %%
-from sympy import symbols, pi, exp, log, sqrt, latex
+
 
 #  9.1 Symbol Definitions
 Q_i = symbols("Q_i", positive=True)
@@ -1017,8 +909,8 @@ display(
 )
 
 print(
-    "\n> 💡 Note: Combining a Gaussian Likelihood with a Log-Normal Prior destroys conjugacy.\n" \
-    "The posterior lacks a closed-form analytical solution. \n" \
+    "\n> 💡 Note: Combining a Gaussian Likelihood with a Log-Normal Prior destroys conjugacy.\n"
+    "The posterior lacks a closed-form analytical solution. \n"
     "We implement Markov Chain Monte Carlo (MCMC via NUTS in PyMC) to sample the field.\n"
 )
 
@@ -1034,9 +926,12 @@ print(
 
 
 # %%
+"""
+# 6. Calculation using - *Baysian Inference*
+"""
+
+# %%
 # Block 10 — BAYESIAN INFERENCE WITH PyMC
-import pymc as pm
-import pytensor.tensor as pt
 
 # Normalise T and C to improve sampler geometry
 # (PyMC samples more efficiently when variables are O(1))
@@ -1069,21 +964,43 @@ with pm.Model() as bayes_model:
         return_inferencedata=True,
         random_seed=42,
     )
+    map_estimate = pm.find_MAP()
 print("Sampling complete.")
 
 # %%
 # Rescale back to original units: Q_actual = Q_sampled * C_scale / T_scale
 Q_posterior = trace.posterior["Q"].values  # shape: (chain, draw, N)
 Q_rescaled = Q_posterior * (C_scale / T_scale)  # g/s (approximate)
+print(Q_posterior.shape)
 
 Q_mean = Q_rescaled.mean(axis=(0, 1))
 Q_lo = np.percentile(Q_rescaled, 5, axis=(0, 1))
 Q_hi = np.percentile(Q_rescaled, 95, axis=(0, 1))
+Q_map = map_estimate["Q"] * (C_scale / T_scale)
 
 print("Posterior Q  [rescaled, approximate g/s]:")
-print(f"  {'Station':30s}  {'Mean':>8}  {'5th':>8}  {'95th':>8}")
+print(f"  {'Station':30s}  {'Mean':>8}  {'Map':>8}  {'5th':>8}  {'95th':>8}")
 for i, s in enumerate(STATION_NAMES):
-    print(f"  {s:30s}  {Q_mean[i]:8.4f}  {Q_lo[i]:8.4f}  {Q_hi[i]:8.4f}")
+    print(
+        f"  {s:30s}  {Q_mean[i]:8.4f}  {Q_map[i]:8.4f}  {Q_lo[i]:8.4f}  {Q_hi[i]:8.4f}"
+    )
+
+# %%
+df_Q["Q_mean"] = Q_mean
+df_Q["Q_lo"] = Q_lo
+df_Q["Q_hi"] = Q_hi
+df_Q["Q_map"] = Q_map
+display(df_Q)
+
+# %%
+#  7.5  Comparison table
+methods = ["lstsq", "NNLS", "Tikhonov", "TruncSVD", "BIMap", "BIMean", "BIlo", "BIhi"]
+Q_all = [Q_lstsq, Q_nnls, Q_tikh, Q_svd, Q_map, Q_mean, Q_lo, Q_hi]
+
+print("Residuals  ||C - TQ||  per method:")
+for m, Q in zip(methods, Q_all):
+    r = np.linalg.norm(C_obs - T_matrix @ Q)
+    print(f"{m:12s}: {r:.4f}")
 
 # %%
 # Block 12 — FIGURE 3 : Bayesian posterior
@@ -1150,94 +1067,66 @@ print("  Saved: fig3_bayesian_posterior.png")
 plt.show()
 
 # %%
-# Block 13 — FIGURE 4 : Attribution stacked bar (explainability)
-print("\n Block 13 : Figure 4 — Attribution (explainability) ")
+# Figure 4 — Reconstruction comparison
+print("\nFigure 4 — Observed vs reconstructed concentrations")
 
-print("[Eq 15]  Fractional attribution of source j to receptor i:")
-print(r"α_{ij} = T_{ij} · Q_j  /  Σ_k T_{ik} · Q_k")
-print("We compute this for NNLS (deterministic) and Bayesian mean.")
-print("This is the core 'explainability' output: for each monitoring")
-print("station, what fraction of the measured pollution came from each")
-print("other station (as a source)?")
+# Compute reconstructed concentrations
+C_reconstructed = {
+    "Observed": C_obs,
+    "LeastSq": T_matrix @ Q_lstsq,
+    "NNLS": T_matrix @ Q_nnls,
+    "Tikhonov": T_matrix @ Q_tikh,
+    "TruncSVD": T_matrix @ Q_svd,
+    "BI_MAP": T_matrix @ Q_map,
+    "BI_Mean": T_matrix @ Q_mean,
+}
 
+# Figure setup
+methods = list(C_reconstructed.keys())
+n_methods = len(methods)
+x = np.arange(N)
+bar_width = 0.12
+fig, ax = plt.subplots(figsize=(18, 8))
+fig.patch.set_facecolor("#f8f8f8")
 
-def attribution_matrix(T, Q):
-    """
-    α[i,j] = T[i,j]*Q[j] / Σ_k T[i,k]*Q[k]
-    Shape: (N_receptors, N_sources)
-    Returns: raw contribution [µg/m³] and fractional [0-1]
-    """
-    contrib = T * Q[np.newaxis, :]  # broadcast: (N,N)
-    total = contrib.sum(axis=1, keepdims=True)
-    total = np.where(total == 0, 1.0, total)
-    frac = contrib / total
-    return contrib, frac
-
-
-contrib_nnls, frac_nnls = attribution_matrix(T_matrix, Q_nnls)
-Q_bayes_mean_raw = Q_mean / (C_scale / T_scale)  # normalised units for T
-contrib_bayes, frac_bayes = attribution_matrix(T_matrix, Q_mean)
-
-# Stacked bar: each receptor's total = 100%, split by source contribution
-fig4, axes4 = plt.subplots(2, 1, figsize=(16, 12))
-fig4.patch.set_facecolor("#f8f8f8")
-fig4.suptitle(
-    "Source Attribution  α_{ij}  — Fraction of concentration at each receptor\nfrom each source",
-    fontsize=13,
+# Plot grouped bars
+for k, method in enumerate(methods):
+    vals = C_reconstructed[method]
+    ax.bar(x + k * bar_width, vals, width=bar_width, label=method, alpha=0.85)
+# Labels
+ax.set_xticks(x + bar_width * (n_methods - 1) / 2)
+ax.set_xticklabels([s[:10] for s in STATION_NAMES], rotation=45, ha="right", fontsize=8)
+ax.set_ylabel(f"{POLLUTANT} Concentration")
+ax.set_title(
+    "Observed vs Reconstructed Concentrations Across Methods",
+    fontsize=14,
     fontweight="bold",
 )
+ax.grid(axis="y", alpha=0.3)
+ax.legend(fontsize=9, ncol=4)
+# Residual annotations
+residual_text = []
+for method in methods[1:]:
+    residual = np.linalg.norm(C_obs - C_reconstructed[method])
+    residual_text.append(f"{method}: {residual:.1f}")
 
-cmap_attr = plt.cm.get_cmap("tab20", N)
-
-for row_idx, (frac, title) in enumerate(
-    [(frac_nnls, "NNLS  (deterministic)"), (frac_bayes, "Bayesian  (posterior mean)")]
-):
-    ax = axes4[row_idx]
-    bottom = np.zeros(N)
-    for j in range(N):
-        vals = frac[:, j] * 100  # percent
-        ax.bar(
-            range(N),
-            vals,
-            bottom=bottom,
-            color=cmap_attr(j),
-            label=STATION_NAMES[j][:10] if row_idx == 0 else "",
-            width=0.6,
-        )
-        # Label cells > 10%
-        for i in range(N):
-            if vals[i] > 8:
-                ax.text(
-                    i,
-                    bottom[i] + vals[i] / 2,
-                    f"{vals[i]:.0f}%",
-                    ha="center",
-                    va="center",
-                    fontsize=6,
-                    fontweight="bold",
-                    color="white",
-                )
-        bottom += vals
-
-    ax.set_xticks(range(N))
-    ax.set_xticklabels(
-        [s[:10] for s in STATION_NAMES], rotation=45, ha="right", fontsize=8
-    )
-    ax.set_ylabel("% attribution")
-    ax.set_ylim(0, 105)
-    ax.set_title(f"{title}")
-    ax.grid(axis="y", alpha=0.2)
-    if row_idx == 0:
-        ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=6, ncol=1)
+ax.text(
+    1.02,
+    0.98,
+    "\n".join(residual_text),
+    transform=ax.transAxes,
+    va="top",
+    fontsize=9,
+    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+)
 
 plt.tight_layout()
-fig4.savefig("fig4_attribution.png", dpi=150, bbox_inches="tight")
-print("  Saved: fig4_attribution.png")
+plt.savefig("fig4_reconstruction_comparison.png", dpi=150, bbox_inches="tight")
+print("Saved: fig4_reconstruction_comparison.png")
 plt.show()
 
-
 # %%
-import arviz as az
+
 # Block 14 — TRACE DIAGNOSTICS (R-hat, ESS)
 print("Convergence criteria:")
 print("• R̂ (Gelman-Rubin) < 1.01  → chains have mixed")
