@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Haversine Distance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { display: ['"Syne"', 'sans-serif'], body: ['"DM Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } }</script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: #080e1a;
+            color: #e2e8f0;
+            font-family: 'DM Sans', sans-serif;
+            overflow: auto;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1424
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 3px
+        }
+
+        .card {
+            background: #0d1424;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 18px
+        }
+
+        .eq-box {
+            background: #060c16;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            color: #94a3b8;
+            line-height: 1.7;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase
+        }
+
+        .kpi {
+            background: #060c16;
+            border: 1px solid #1e293b;
+            border-radius: 9px;
+            padding: 10px 14px;
+        }
+
+        .kpi-label {
+            font-size: 9.5px;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+
+        .kpi-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        input[type=range] {
+            accent-color: #22c787;
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .glow-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(34, 199, 135, 0.4), transparent)
+        }
+
+        .callout {
+            border-left: 3px solid;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <div class="mb-5">
+        <div class="tag mb-3"
+            style="background:rgba(34,199,135,0.1);color:#22c787;border:1px solid rgba(34,199,135,0.2);">Module 2 — Core
+            Geometry</div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#f1f5f9;"
+            class="mb-1">Haversine Distance</h1>
+        <p style="color:#94a3b8;font-size:13.5px;max-width:640px;line-height:1.7;">The Earth is a sphere. Between two
+            stations we need the <em>great-circle</em> distance — not flat Euclidean geometry. The Haversine formula
+            gives us this accurately.</p>
+    </div>
+
+    <div class="glow-line mb-5"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;">
+
+        <!-- Left col -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+            <!-- Interactive canvas -->
+            <div class="card p-3">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;">
+                            Interactive Bangalore Station Map</div>
+                        <div style="font-size:10.5px;color:#64748b;">Drag the sliders to move the receptor station</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:10.5px;color:#64748b;">Rec lat</span>
+                        <input type="range" id="recLat" min="12.72" max="13.10" step="0.001" value="13.03"
+                            style="width:90px">
+                        <span id="recLatV"
+                            style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#22c787;min-width:48px;">13.030</span>
+                        <span style="font-size:10.5px;color:#64748b;">lon</span>
+                        <input type="range" id="recLon" min="77.38" max="77.82" step="0.001" value="77.66"
+                            style="width:90px">
+                        <span id="recLonV"
+                            style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#22c787;min-width:48px;">77.660</span>
+                    </div>
+                </div>
+                <canvas id="havCanvas" width="640" height="340"
+                    style="width:100%;border-radius:8px;background:#060c16;"></canvas>
+                <div class="flex gap-4 mt-2 flex-wrap">
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#22c787;display:inline-block"></span>Source
+                        station</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block"></span>Receptor
+                        (movable)</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:4px;border-radius:2px;background:#475569;display:inline-block"></span>Other
+                        stations</div>
+                </div>
+            </div>
+
+            <!-- Live KPIs -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                <div class="kpi">
+                    <div class="kpi-label">Distance d</div>
+                    <div class="kpi-val" id="kpi-d" style="color:#22c787;">— km</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Δlat (Δφ)</div>
+                    <div class="kpi-val" id="kpi-dlat" style="color:#3db8ff;">— °</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Δlon (Δλ)</div>
+                    <div class="kpi-val" id="kpi-dlon" style="color:#a78bfa;">— °</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">a = sin²(Δφ/2)+…</div>
+                    <div class="kpi-val" id="kpi-a" style="color:#f5a623;">—</div>
+                </div>
+            </div>
+
+            <!-- Step-by-step derivation -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:14px;">
+                    Step-by-Step Derivation</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                        <div class="step-num" style="background:rgba(34,199,135,0.12);color:#22c787;">1</div>
+                        <div style="flex:1;">
+                            <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">Convert
+                                coordinates to radians</div>
+                            <div class="eq-box">φ₁ = lat₁ × π/180, φ₂ = lat₂ × π/180
+                                Δφ = (lat₂ − lat₁) × π/180
+                                Δλ = (lon₂ − lon₁) × π/180</div>
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;line-height:1.6;">All
+                                trigonometric functions work in radians, so we convert degrees first.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                        <div class="step-num" style="background:rgba(56,189,248,0.12);color:#38bdf8;">2</div>
+                        <div style="flex:1;">
+                            <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">Compute the
+                                Haversine intermediate term <em>a</em></div>
+                            <div class="eq-box" id="hav-eq1">$$a = \sin^2\!\!\left(\frac{\Delta\varphi}{2}\right) +
+                                \cos(\varphi_1)\cdot\cos(\varphi_2)\cdot\sin^2\!\!\left(\frac{\Delta\lambda}{2}\right)$$
+                            </div>
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;line-height:1.6;">This is the
+                                half-versed-sine of the central angle. <strong style="color:#e2e8f0;">a ∈ [0,1]</strong>
+                                — it's always non-negative.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                        <div class="step-num" style="background:rgba(167,139,250,0.12);color:#a78bfa;">3</div>
+                        <div style="flex:1;">
+                            <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">Convert to
+                                distance using arcsin</div>
+                            <div class="eq-box" id="hav-eq2">$$d = 2R \cdot \arcsin\!\!\left(\sqrt{a}\right), \quad R =
+                                6{,}371 \text{ km}$$</div>
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;line-height:1.6;">R is Earth's
+                                mean radius. arcsin(√a) gives half the central angle; multiplying by 2R converts to arc
+                                length.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                        <div class="step-num" style="background:rgba(245,166,35,0.12);color:#f5a623;">4</div>
+                        <div style="flex:1;">
+                            <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">Convert km →
+                                metres for plume model</div>
+                            <div class="eq-box">d_m = d_km × 1000</div>
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:5px;">The Pasquill-Gifford dispersion
+                                formula uses metres. Distances < 10 m are floored to 100 m (same-station
+                                    self-emission).</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right col -->
+            <div style="display:flex;flex-direction:column;gap:14px;">
+
+                <!-- Why not Euclidean -->
+                <div class="card">
+                    <div
+                        style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:8px;">
+                        Why Not Flat Geometry?</div>
+                    <canvas id="curveCanvas" width="300" height="160"
+                        style="width:100%;border-radius:8px;background:#060c16;margin-bottom:10px;"></canvas>
+                    <p style="font-size:12px;color:#94a3b8;line-height:1.65;">At distances of <strong
+                            style="color:#e2e8f0;">1–50 km</strong>, the difference between Euclidean and great-circle
+                        distance is small (~0.01%) but at larger distances the Earth's curvature matters significantly.
+                        The Haversine formula is exact for a sphere.</p>
+                </div>
+
+                <!-- Live formula trace -->
+                <div class="card">
+                    <div
+                        style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:10px;">
+                        Live Computation Trace</div>
+                    <div style="display:flex;flex-direction:column;gap:7px;">
+                        <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                            <div
+                                style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">
+                                Radians</div>
+                            <div id="trace-rad"
+                                style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#22c787;">—</div>
+                        </div>
+                        <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                            <div
+                                style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">
+                                sin² and cos terms</div>
+                            <div id="trace-terms"
+                                style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#38bdf8;">—</div>
+                        </div>
+                        <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                            <div
+                                style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">
+                                a → arcsin(√a) → distance</div>
+                            <div id="trace-final"
+                                style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#f5a623;font-weight:600;">
+                                —</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key insight callout -->
+                <div class="callout" style="border-color:#22c787;background:rgba(34,199,135,0.05);">
+                    <strong style="color:#22c787;">Key insight:</strong><br>
+                    <span style="color:#94a3b8;font-size:12px;line-height:1.65;">The Haversine formula is
+                        <em>numerically stable</em> for both small distances (where sin≈θ) and large distances
+                        (antipodal points). It's the standard formula for all aviation and GIS applications.</span>
+                </div>
+
+                <!-- Error comparison table -->
+                <div class="card">
+                    <div
+                        style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:8px;">
+                        Haversine vs Euclidean Error</div>
+                    <table
+                        style="width:100%;font-size:11px;font-family:'JetBrains Mono',monospace;border-collapse:collapse;">
+                        <thead>
+                            <tr style="color:#64748b;border-bottom:1px solid #1e293b;">
+                                <th style="text-align:left;padding:4px 8px;">Distance</th>
+                                <th style="padding:4px 8px;">Error</th>
+                                <th style="padding:4px 8px;">Verdict</th>
+                            </tr>
+                        </thead>
+                        <tbody style="color:#94a3b8;">
+                            <tr style="border-bottom:1px solid #1e293b20;">
+                                <td style="padding:4px 8px;">
+                                    < 1 km</td>
+                                <td style="padding:4px 8px;color:#22c787;">~0.001%</td>
+                                <td style="padding:4px 8px;color:#22c787;">Negligible</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #1e293b20;">
+                                <td style="padding:4px 8px;">10 km</td>
+                                <td style="padding:4px 8px;color:#f5a623;">~0.08%</td>
+                                <td style="padding:4px 8px;color:#f5a623;">Noticeable</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:4px 8px;">100 km</td>
+                                <td style="padding:4px 8px;color:#fb7185;">~0.8%</td>
+                                <td style="padding:4px 8px;color:#fb7185;">Use Haversine</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <script>
+            const STATIONS = [
+                { n: 'BTMLayout', lat: 12.9135, lon: 77.5951 }, { n: 'BWSSBKad.', lat: 12.9352, lon: 77.6814 },
+                { n: 'BapujiN.', lat: 12.9519, lon: 77.5398 }, { n: 'CityRail.', lat: 12.9757, lon: 77.5661 },
+                { n: 'Hebbal', lat: 13.0292, lon: 77.5859 }, { n: 'Hombeg.', lat: 12.9385, lon: 77.5901 },
+                { n: 'Jayanag.', lat: 12.9210, lon: 77.5849 }, { n: 'Jigani', lat: 12.7816, lon: 77.6299 },
+                { n: 'KasturiN.', lat: 13.0039, lon: 77.6642 }, { n: 'Peenya', lat: 13.0270, lon: 77.4941 },
+                { n: 'RVCE', lat: 12.9214, lon: 77.5025 }, { n: 'Saneg.', lat: 12.9903, lon: 77.5431 },
+                { n: 'Shivap.', lat: 13.0246, lon: 77.5080 }, { n: 'SilkBrd', lat: 12.9173, lon: 77.6228 }
+            ];
+            const SRC = { lat: 12.9757, lon: 77.5661 }; // CityRailway as source
+
+            function hav(la1, lo1, la2, lo2) {
+                const R = 6371;
+                const p1 = la1 * Math.PI / 180, p2 = la2 * Math.PI / 180;
+                const dp = (la2 - la1) * Math.PI / 180, dl = (lo2 - lo1) * Math.PI / 180;
+                const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+                return { d: 2 * R * Math.asin(Math.sqrt(Math.max(0, Math.min(1, a)))), a, dp, dl, p1, p2 };
+            }
+
+            function toPixel(lat, lon, cx, cy, scl) {
+                const cLat = 12.9, cLon = 77.58;
+                return { px: cx + (lon - cLon) * scl * 111 * Math.cos(12.9 * Math.PI / 180), py: cy - (lat - cLat) * scl * 111 };
+            }
+
+            const canvas = document.getElementById('havCanvas');
+            const ctx = canvas.getContext('2d');
+            const recLatEl = document.getElementById('recLat');
+            const recLonEl = document.getElementById('recLon');
+
+            function draw() {
+                const W = canvas.width, H = canvas.height;
+                const recLat = parseFloat(recLatEl.value);
+                const recLon = parseFloat(recLonEl.value);
+                document.getElementById('recLatV').textContent = recLat.toFixed(3);
+                document.getElementById('recLonV').textContent = recLon.toFixed(3);
+
+                const cx = W / 2, cy = H / 2, scl = Math.min(W, H) / (0.38 * 111) * 0.65;
+                ctx.fillStyle = '#060c16'; ctx.fillRect(0, 0, W, H);
+
+                // Grid lines
+                ctx.strokeStyle = 'rgba(30,58,95,0.35)'; ctx.lineWidth = 1;
+                for (let x = 0; x < W; x += 55) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+                for (let y = 0; y < H; y += 55) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+                // Other stations
+                for (const st of STATIONS) {
+                    const { px, py } = toPixel(st.lat, st.lon, cx, cy, scl);
+                    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(71,85,105,0.7)'; ctx.fill();
+                    ctx.fillStyle = '#475569'; ctx.font = '9.5px JetBrains Mono,monospace'; ctx.textAlign = 'left';
+                    ctx.fillText(st.n, px + 7, py + 3);
+                }
+
+                // Source
+                const { px: sx, py: sy } = toPixel(SRC.lat, SRC.lon, cx, cy, scl);
+                ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#22c787'; ctx.fill();
+                ctx.strokeStyle = '#060c16'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = '#060c16'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('S', sx, sy + 3);
+                ctx.fillStyle = '#22c787'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'left';
+                ctx.fillText('Source', sx + 13, sy + 4);
+
+                // Receptor
+                const { px: rx, py: ry } = toPixel(recLat, recLon, cx, cy, scl);
+
+                // Distance line with arc indication
+                ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry);
+                ctx.strokeStyle = 'rgba(245,166,35,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+                // Mid-point distance label
+                const mx = (sx + rx) / 2, my = (sy + ry) / 2;
+                const { d, a, dp, dl, p1, p2 } = hav(SRC.lat, SRC.lon, recLat, recLon);
+                ctx.fillStyle = 'rgba(6,12,22,0.9)';
+                ctx.fillRect(mx - 38, my - 16, 76, 18);
+                ctx.fillStyle = '#f5a623'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+                ctx.fillText(`d = ${d.toFixed(3)} km`, mx, my - 3);
+
+                ctx.beginPath(); ctx.arc(rx, ry, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#f5a623'; ctx.fill();
+                ctx.strokeStyle = '#060c16'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = '#060c16'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('R', rx, ry + 3);
+                ctx.fillStyle = '#f5a623'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'left';
+                ctx.fillText('Receptor', rx + 13, ry + 4);
+
+                // North
+                drawArrow(ctx, W - 35, 55, W - 35, 32, '#475569', 1.5, 7);
+                ctx.fillStyle = '#475569'; ctx.font = 'bold 9px Syne,sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', W - 35, 70);
+
+                // Update KPIs
+                document.getElementById('kpi-d').textContent = d.toFixed(4) + ' km';
+                document.getElementById('kpi-dlat').textContent = ((recLat - SRC.lat)).toFixed(4) + '°';
+                document.getElementById('kpi-dlon').textContent = ((recLon - SRC.lon)).toFixed(4) + '°';
+                document.getElementById('kpi-a').textContent = a.toFixed(6);
+
+                // Live trace
+                const sin2dp = Math.sin(dp / 2) ** 2;
+                const cosTerm = Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+                document.getElementById('trace-rad').textContent = `φ₁=${p1.toFixed(5)} rad  φ₂=${p2.toFixed(5)} rad\nΔφ=${dp.toFixed(5)} rad  Δλ=${dl.toFixed(5)} rad`;
+                document.getElementById('trace-terms').textContent = `sin²(Δφ/2)=${sin2dp.toFixed(6)}\ncos(φ₁)·cos(φ₂)·sin²(Δλ/2)=${cosTerm.toFixed(6)}`;
+                document.getElementById('trace-final').textContent = `a=${a.toFixed(6)}  √a=${Math.sqrt(a).toFixed(6)}\narcsin(√a)=${Math.asin(Math.sqrt(a)).toFixed(6)} rad\nd = 2×6371×${Math.asin(Math.sqrt(a)).toFixed(4)} = ${d.toFixed(4)} km`;
+            }
+
+            function drawArrow(ctx, x1, y1, x2, y2, col, lw, hl = 10) {
+                const ang = Math.atan2(y2 - y1, x2 - x1);
+                ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.setLineDash([]);
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - hl * Math.cos(ang - Math.PI / 6), y2 - hl * Math.sin(ang - Math.PI / 6));
+                ctx.lineTo(x2 - hl * Math.cos(ang + Math.PI / 6), y2 - hl * Math.sin(ang + Math.PI / 6));
+                ctx.closePath(); ctx.fill(); ctx.restore();
+            }
+
+            // Earth curve diagram
+            const cc = document.getElementById('curveCanvas');
+            const cc2 = cc.getContext('2d');
+            function drawCurve() {
+                const W = cc.width, H = cc.height;
+                cc2.fillStyle = '#060c16'; cc2.fillRect(0, 0, W, H);
+                // Draw arc on sphere
+                const cx = W / 2, cy = H + 60, r = H + 40;
+                cc2.beginPath(); cc2.arc(cx, cy, r, -Math.PI * 0.42, -Math.PI * 0.58, true);
+                cc2.strokeStyle = 'rgba(34,199,135,0.25)'; cc2.lineWidth = 40; cc2.stroke();
+                cc2.beginPath(); cc2.arc(cx, cy, r, -Math.PI * 0.42, -Math.PI * 0.58, true);
+                cc2.strokeStyle = 'rgba(34,199,135,0.6)'; cc2.lineWidth = 2; cc2.stroke();
+                // Straight line (Euclidean)
+                const a1 = -Math.PI * 0.42, a2 = -Math.PI * 0.58;
+                const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+                const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+                cc2.beginPath(); cc2.moveTo(x1, y1); cc2.lineTo(x2, y2);
+                cc2.strokeStyle = 'rgba(251,113,133,0.7)'; cc2.lineWidth = 2; cc2.setLineDash([6, 4]); cc2.stroke(); cc2.setLineDash([]);
+                // Labels
+                cc2.fillStyle = '#22c787'; cc2.font = 'bold 10px JetBrains Mono,monospace'; cc2.textAlign = 'center';
+                cc2.fillText('Haversine (arc)', W / 2, 20);
+                cc2.fillStyle = '#fb7185'; cc2.fillText('Euclidean (chord)', W / 2, 36);
+                // Points
+                cc2.beginPath(); cc2.arc(x1, y1, 5, 0, Math.PI * 2); cc2.fillStyle = '#22c787'; cc2.fill();
+                cc2.beginPath(); cc2.arc(x2, y2, 5, 0, Math.PI * 2); cc2.fillStyle = '#f5a623'; cc2.fill();
+            }
+
+            recLatEl.addEventListener('input', draw);
+            recLonEl.addEventListener('input', draw);
+            draw(); drawCurve();
+        </script>
+</body>
+
+</html>

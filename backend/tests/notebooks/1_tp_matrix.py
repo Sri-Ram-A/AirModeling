@@ -17,6 +17,9 @@ References:
 """
 
 # %%
+# ! ipynb-py-convert 1_tp_matrix.ipynb
+
+# %%
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -30,53 +33,43 @@ from sympy import (
     sqrt,
     latex,
     simplify,
-    Rational,
     cos,
     sin,
     atan2,
-    Piecewise,
-    Function,
-    Matrix,
     init_printing,
 )
+
 # Display settings
-init_printing(),
+init_printing()
 pd.set_option("display.float_format", "{:.4f}".format)
 np.set_printoptions(precision=4, suppress=True)
-x = symbols('x')
-sqrt(x) 
+x = symbols("x")
+sqrt(x)
 
 # %%
-POLLUTANT = "pm25"          # change to pm10, no2, etc. to explore
-H_STACK   = 20.0            # effective stack / emission height [m]
+from IPython.display import display
+
+POLLUTANT = "pm25"  # change to pm10, no2, etc. to explore
+H_STACK = 20.0  # effective stack / emission height [m]
 # 20 m is a reasonable proxy for a monitoring station
 # in a mixed urban environment (road + industry blend)
 ROOT_DIR = Path().resolve().parents[2]
 DATA_DIR = ROOT_DIR / "backend" / "data"
-MASTER_DATASET_FILE  = DATA_DIR / "artifacts" / "final_master_dataset.csv"
+MASTER_DATASET_FILE = DATA_DIR / "artifacts" / "final_master_dataset.csv"
 STATIONS_FILE = DATA_DIR / "raw" / "stations.csv"
 stations_df = pd.read_csv(STATIONS_FILE)
+display(stations_df.head(5))
+STATION_NAMES = stations_df["StationName"].unique().tolist()
+print("Station names:\n",STATION_NAMES)
 
 # %%
-stations_df.head(5)
-
-# %%
-STATION_NAMES = list(stations_df.StationName)
-STATION_NAMES
-
-# %%
-from IPython.display import display
 # Block 1 — LOAD DATA (with graceful synthetic fallback)
-print("\n Block 1 : Loading data ")
 N = len(STATION_NAMES)  # 14
-print(f"  Loading from {MASTER_DATASET_FILE}")
 df_full = pd.read_csv(MASTER_DATASET_FILE, parse_dates=["time"])
 df_full = df_full[df_full["station_name"].isin(STATION_NAMES)]
 display(df_full.head(3))
 display(df_full.dtypes)
-
-# %%
-df_full.dtypes["pm25"] # Pandas Series object can be acessed like normal python dictionary
+print(f"df.dtypes[{POLLUTANT}]",df_full.dtypes[POLLUTANT]) # Pandas Series object can be acessed like normal python dictionary
 
 # %%
 """
@@ -98,37 +91,40 @@ filtered_df = df_full.dropna(
 )
 after_rows = len(filtered_df)
 dropped_rows = before_rows - after_rows
-print(f"Rows before dropna : {before_rows}")
-print(f"Rows after dropna  : {after_rows}")
-print(f"Rows dropped       : {dropped_rows}")
+print(f"1. Dropping rows which dont have [{POLLUTANT},wind_speed or wind_direction]")
+print(f"{before_rows:,} - {after_rows:,}: {dropped_rows:,}")
 
 # 2. First Pivot the table ar station_name
 pivot_check = filtered_df.pivot_table(
     index="time", columns="station_name", values=POLLUTANT, aggfunc="first"
 )
-print("Pivoted table <Transposes the df by considering station_name as columns > :")
+# pivot_check = pivot_check.reindex(columns=STATION_NAMES)
+print(
+    f"Pivoted table <Transposes the df by considering station_name as columns and {POLLUTANT} as row values > :"
+)
 display(pivot_check.head(3))
 
-# 3. Keep only times where: all 14 stations have pollutant data (so that there are no NAN values in matrix)
+# 3. Keep times where at least 10 stations have data
+print("2. Keep times with a minimum threshold of valid stations")
 before_rows = len(pivot_check)
-full_rows = pivot_check.dropna(axis=0)
+# thresh=10 means a row must have at least 10 non-NaN values to survive
+full_rows = pivot_check.dropna(axis=0, thresh=12)
 after_rows = len(full_rows)
-dropped_rows = before_rows - after_rows
-print(f"Rows before filtering : {before_rows}")
-print(f"Rows after filtering  : {after_rows}")
-print(f"Rows dropped          : {dropped_rows}")
+print(f"Timestamps surviving threshold: {after_rows:,}")
+print(f"{before_rows:,} - {after_rows:,}: {dropped_rows:,}")
 display(pivot_check.head(3))
 
 # 4. Select the most recent time (or any index as you wish)
 if len(full_rows) > 0:
     t0 = full_rows.index[0]
 else:
-    t0 = df_full["time"].min()
+    t0 = filtered_df["time"].min()
 print(f"Selected snapshot time: {t0}")
 
 # 5. Select the C , WS , WD and SR for this particular timeperiod
-snap = df_full[df_full["time"] == t0].set_index("station_name")
+snap = filtered_df[filtered_df["time"] == t0].set_index("station_name")
 display(snap)
+print(snap.shape)
 C_obs_list = []
 WS_list = []
 WD_list = []
@@ -142,9 +138,9 @@ for s in STATION_NAMES:
 
     else:
         C_obs_list.append(np.nan)
-        WS_list.append(2.5)
-        WD_list.append(200.0)
-        SR_list.append(200.0)
+        WS_list.append(np.nan)
+        WD_list.append(np.nan)
+        SR_list.append(np.nan)
 
 # Convert to numpy arrays
 C_obs = np.array(C_obs_list, dtype=float)
@@ -153,17 +149,30 @@ WD = np.array(WD_list, dtype=float)
 SR = np.array(SR_list, dtype=float)
 hour = t0.hour
 
-# Fill any remaining NaNs with column medians
+# Count NaNs before imputation
+nan_counts = {
+    "Pollutant (C_obs)": np.isnan(C_obs).sum(),
+    "Wind Speed (WS)": np.isnan(WS).sum(),
+    "Wind Direction (WD)": np.isnan(WD).sum(),
+    "Solar Radiation (SR)": np.isnan(SR).sum(),
+}
+
+print("NaN Counts Before Imputation ")
+for var_name, count in nan_counts.items():
+    print(f"{var_name:<20}: {count} NaN(s) detected")
+
+# Fill any remaining NaNs (Your existing code)
 C_obs = np.where(np.isnan(C_obs), np.nanmedian(C_obs), C_obs)
-WS = np.where(np.isnan(WS), 2.5, WS)
-WD = np.where(np.isnan(WD), 200.0, WD)
-SR = np.where(np.isnan(SR), 200.0, SR)
+WS = np.where(np.isnan(WS), np.nanmedian(WS), WS)
+WD = np.where(np.isnan(WD), np.nanmedian(WD), WD)
+SR = np.where(np.isnan(SR), np.nanmedian(SR), SR)
 
 
 print(f"{'Stations':<20}: {N}")
 print(f"{'Pollutant':<20}: {POLLUTANT}")
 print(f"{'Wind speed range':<20}: {WS.min():.2f} - {WS.max():.2f} m/s")
 print(f"{'Wind dir range':<20}: {WD.min():.1f}° - {WD.max():.1f}°")
+display(filtered_df.isnull().sum())
 
 # %%
 lats = np.array(stations_df.Latitude)
@@ -178,27 +187,22 @@ print("Longitude",lons)
 
 # %%
 from IPython.display import display, Math
+from sympy import symbols
 
-# Block 2 — SYMPY: THE GAUSSIAN PLUME MODEL
-print("\n Block 2 : Gaussian Plume Model — symbolic derivation ")
+print(" BLOCK 2: GAUSSIAN PLUME MODEL — SYMBOLIC DERIVATION")
 
-# --- 2.1  Symbol definitions -------------------------------------------------
+# 2.1 Symbol definitions -
+# Giving symbols proper LaTeX representations makes display() look professional
 x, y, z, H, u = symbols("x y z H u", positive=True)
-sigma_y, sigma_z = symbols("sigma_y sigma_z", positive=True)
 Q_src = symbols("Q", positive=True)  # emission rate [g/s]
+
+sigma_y = symbols(r"\sigma_y", positive=True)
+sigma_z = symbols(r"\sigma_z", positive=True)
+
 a_y, b_y = symbols("a_y b_y", positive=True)
 a_z, b_z = symbols("a_z b_z", positive=True)
 
-# --- 2.2  Full 3-D Gaussian plume (with ground reflection) ------------------
-#   The steady-state solution to the advection-diffusion equation for a
-#   continuous point source at height H above ground, assuming:
-#     • Uniform mean wind u in the x-direction
-#     • Gaussian spreading in y (crosswind) and z (vertical)
-#     • Perfectly reflecting ground (image source trick)
-#   C(x,y,z) =(Q / (2π u σ_y σ_z)) × exp(-y² / 2σ_y²) × [exp(-(z-H)² / 2σ_z²) + exp(-(z+H)² / 2σ_z²)]
-#   At ground level (z = 0, where sensors sit):
-#   C(x,y,0) = (Q / (π u σ_y σ_z)) × exp(-y² / 2σ_y²) × exp(-H² / 2σ_z²)
-
+# 2.2 Full 3-D Gaussian plume (with ground reflection)
 C_full = (
     Q_src
     / (2 * pi * u * sigma_y * sigma_z)
@@ -209,39 +213,45 @@ C_full = (
     )
 )
 
-C_ground = C_full.subs(z, 0)
-C_ground = simplify(C_ground)
+# Ground-level concentration (z = 0)
+C_ground = simplify(C_full.subs(z, 0))
 
-print("\n  [Eq 1]  Full 3-D Gaussian plume concentration field:")
+print("\n1. Concentration Fields ")
+print("[Eq 1] Full 3-D Gaussian plume concentration field:")
 display(Math(f"\\huge C(x,y,z) = {latex(C_full)}"))
-print(
-    "\n  [Eq 2]  Ground-level (z=0), after simplification via image-source reflection:"
-)
+
+print("\n[Eq 2] Ground-level (z=0) with perfect image-source reflection:")
 display(Math(f"\\huge C(x,y,0) = {latex(C_ground)}"))
 
-# %%
-# --- 2.3  Transport coefficient T = C/Q  ------------------------------------
-#   Re-arranging: if we define T such that C = T * Q, then:
-#   T(x,y) = (1 / (π u σ_y σ_z)) x  exp(-y²/2σ_y²) x  exp(-H²/2σ_z²)
-#   Unit analysis:
-#     [T] = 1 / [(m/s)(m)(m)] = s/m³
-#     [C] = [T] x  [Q] = (s/m³) x  (g/s) = g/m³
-#     Multiply by 1e6 → µg/m³  (to match sensor readings)
 
-T_sym = C_ground / Q_src
-print("[Eq 3]  Transport coefficient T = C / Q  (unit: s/m³ before x 1e6):")
-display(Math(f"\\huge T(x,y) = {latex(simplify(T_sym))}"))
+# 2.3 Transport coefficient T = C/Q
+T_sym = simplify(C_ground / Q_src)
+
+print("\n2. Transport Coefficient ")
+print("[Eq 3] Transport coefficient T(x,y) where C = T * Q (Unit: s/m³):")
+display(Math(f"\\huge T(x,y) = {latex(T_sym)}"))
 
 
-# --- 2.4  Pasquill-Gifford dispersion parameterisation ----------------------
+# 2.4 Pasquill-Gifford dispersion parameterisation -
 sigma_y_eq = a_y * x**b_y
 sigma_z_eq = a_z * x**b_z
-print("[Eq 4]  Pasquill-Gifford dispersion coefficients (power-law):")
-display(Math(f"\\huge sigma_y(x) = {latex(sigma_y_eq)}"))
-display(Math(f"\\huge sigma_z(x) = {latex(sigma_z_eq)}"))
 
-print("Coefficient table by atmospheric stability class")
-print("(Pasquill 1961; Turner EPA workbook 1970):")
+print("\n3. Dispersion Parameterization ")
+print("[Eq 4] Pasquill-Gifford power-law downwind equations:")
+display(Math(f"\\huge \\sigma_y(x) = {latex(sigma_y_eq)}"))
+display(Math(f"\\huge \\sigma_z(x) = {latex(sigma_z_eq)}"))
+
+# CRITICAL IMPROVEMENT: Show the final combined equation explicitly!
+T_final = T_sym.subs({sigma_y: sigma_y_eq, sigma_z: sigma_z_eq})
+print("\n[Eq 5] Final fully-substituted analytical equation for T(x,y):")
+display(Math(f"\\huge T(x,y) = {latex(simplify(T_final))}"))
+
+
+# 2.5 Structured Coefficient Table
+print("\n4. Atmospheric Stability Coefficients ")
+print("Source: Pasquill (1961) & Turner EPA Workbook (1970)\n")
+
+# 2.6 From Unstable (A) to Stable (F)
 PG_COEFFS = {
     "A": dict(a_y=0.36, b_y=0.90, a_z=0.00023, b_z=2.10),
     "B": dict(a_y=0.25, b_y=0.90, a_z=0.058, b_z=1.09),
@@ -250,22 +260,30 @@ PG_COEFFS = {
     "E": dict(a_y=0.096, b_y=0.90, a_z=0.85, b_z=0.47),
     "F": dict(a_y=0.063, b_y=0.90, a_z=0.77, b_z=0.42),
 }
-print(f"  {'Class':6} {'a_y':8} {'b_y':6} {'a_z':10} {'b_z':6}")
+# Clean tabular alignment using format string padding
+header = (
+    f"  {'Stability Class':<24} | {'a_y':<8} | {'b_y':<6} | {'a_z':<8} | {'b_z':<6}"
+)
+print(header)
+print("  " + "-" * len(header))
 for cls, v in PG_COEFFS.items():
-    print(f"  {cls:6} {v['a_y']:8.4f} {v['b_y']:6.2f} {v['a_z']:10.5f} {v['b_z']:6.2f}")
+    print(
+        f"  {cls:<24} | {v['a_y']:8.4f} | {v['b_y']:6.2f} | {v['a_z']:8.5f} | {v['b_z']:6.2f}"
+    )
 
 # %%
 # Block 3 — NUMERICAL HELPERS (haversine, bearing, stability, σ, T element)
 # look into bearing.html and visualize.html
 from sympy import Mod, asin
 
-print("\n Block 3 : Numerical helper functions ")
+# Physical thresholds — tunable constants, not magic numbers
+MIN_WIND_SPEED_MS = 0.5  # [m/s]  calm-wind threshold; below this the plume equation breaks down physically (Pasquill-Gifford is only valid u ≥ 0.5)
+MIN_DOWNWIND_DIST_M = 500.0  # [m]    near-field threshold; PG power-law was calibrated on field data at x ≥ 500 m. Extrapolating closer produces unphysically high (→ inf) transport coefficients.
+MAX_SIGMA_Z_M = 500.0  # [m]    cap to prevent vertical dilution ≈ 0 for extremely stable / long-range runs
 
 # Symbol definitions
 R = symbols("R", positive=True)
-
 lat1, lon1, lat2, lon2 = symbols("lat1 lon1 lat2 lon2", real=True)
-
 phi1, phi2 = symbols("phi_1 phi_2", real=True)
 Delta_phi = symbols(r"\Delta\phi", real=True)
 Delta_lambda = symbols(r"\Delta\lambda", real=True)
@@ -296,12 +314,6 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return 2 * R * np.arcsin(np.sqrt(a))
 
 
-# Now imagine:
-# North = 0° | East = 90° | South = 180° | West = 270°
-# If another point lies:
-# directly east of you → bearing = 90°
-# directly south → bearing = 180°
-# northeast → bearing ≈ 45°
 def bearing_deg(lat1, lon1, lat2, lon2):
     """Look into bearing.html for more detailed understanding"""
     """
@@ -389,13 +401,21 @@ def transport_element(
          x = d_m · cos(wind_dir - bearing)   # positive = downwind
          y = d_m · sin(wind_dir - bearing)   # lateral offset
       4. If x ≤ 0 → receptor is UPWIND → T = 0
-      5. σ_y, σ_z from P-G table
+      5. sigma_y, sigma_z from P-G table
       6. Apply ground-level Gaussian plume formula x 1e6 (g→µg)
 
     Returns:
         T [µg/m³ per g/s]
     """
-    # 1. Calculate the Haversine distance and convert to metres 
+    if not np.isfinite(wind_speed_ms) or not np.isfinite(wind_dir_deg):
+        return 0.0
+
+    # Sensors occasionally report 0.0 m/s (calm conditions).  That is a valid
+    # meteorological reading but makes the Gaussian Plume formula singular.
+    # A 0.5 m/s floor is the conventional lower bound for PG applicability.
+    u = max(float(wind_speed_ms), MIN_WIND_SPEED_MS)
+
+    # 1. Calculate the Haversine distance and convert to metres
     d_km = haversine_km(lat_src, lon_src, lat_rec, lon_rec)
     if d_km < 0.01:  # same station (diagonal): self-emission
         # Use a minimal distance of 100 m so formula is well-defined
@@ -408,52 +428,32 @@ def transport_element(
     delta_rad = np.radians(wind_dir_deg - bear)
     x_m = d_m * np.cos(delta_rad)
     y_m = d_m * np.sin(delta_rad)
-    if x_m <= 0:
+    if x_m <= 0 or not np.isfinite(x_m) or not np.isfinite(y_m):
         return 0.0  # receptor is upwind of source; no contribution
-    
-    # 3. Find the standard deviations
+
+    # 3. Find the standard deviations (Dispersion coefficients)
     sy, sz = sigma_y_z(x_m, stability_cls)
     if sy < 1e-6 or sz < 1e-6:
         return 0.0
-    T = (
-        1.0
-        / (np.pi * wind_speed_ms * sy * sz)
-        * np.exp(-(y_m**2) / (2 * sy**2))
-        * np.exp(-(H_m**2) / (2 * sz**2))
-    )
 
-    return T * 1e6  # convert g/m³ → µg/m³
+    lateral = np.exp(-(y_m**2) / (2 * sy**2))
+    vertical = np.exp(-(H_m**2) / (2 * sz**2))
+    T_raw = (1.0 / (np.pi * u * sy * sz)) * lateral * vertical
+    if not np.isfinite(T_raw):
+        return 0.0
 
-
-print(
-    "  Functions defined: haversine_km, bearing_deg, stability_class , sigma_y_z, transport_element"
-)
+    return T_raw * 1e6  # µg·m⁻³ per g·s⁻¹
 
 
 # %%
-# Block 4 — BUILD THE TRANSPORT MATRIX T  (14 x 14)
+from tqdm import tqdm
 from collections import Counter
 
-print("[Eq 5]Matrix form of the model: C = T · Q")
-print(
-    "where T_{ij} = transport coefficient: contribution of source j to receptor i  [µg·m⁻³ / g·s⁻¹]"
-)
-print(
-    "We use MEAN wind conditions across all stations for each time window , then assign a single stability class per snapshot."
-)
-
-# Per-station stability; then take mode for the snapshot
-# (a more advanced version would use per-station met → per-pair T)
+# Use per-source wind (wind at the SOURCE station drives transport)
 is_day = 6 <= hour <= 18
 stab_per = [stability_class(WS[k], SR[k], is_day) for k in range(N)]
 
 stab_mode = Counter(stab_per).most_common(1)[0][0]
-print(f"Stability classes per station: {Counter(stab_per)}")
-print(f"Snapshot stability class (mode): {stab_mode}")
-
-# %%
-from tqdm import tqdm
-# Use per-source wind (wind at the SOURCE station drives transport)
 T_matrix = np.zeros((N, N))
 for j, src in tqdm(enumerate(STATION_NAMES), total=N, desc="Building T matrix"):
     for i, rec in enumerate(STATION_NAMES):
@@ -476,16 +476,16 @@ df_T_peek = pd.DataFrame(
     T_matrix[:4, :4], index=STATION_NAMES[:4], columns=STATION_NAMES[:4]
 )
 print(df_T_peek.to_string())
-print(f"\n  C_obs ({POLLUTANT}) per station [µg/m³]:")
+print(f"\n C_obs ({POLLUTANT}) per station [µg/m³]:")
 for i, s in enumerate(STATION_NAMES):
-    print(f"    {s:30s}: {C_obs[i]:7.2f}")
+    print(f"{s:30s}: {C_obs[i]:7.2f}")
 
 # %%
 # Block 5 — FIGURE 1 : Transport matrix heatmap + station map
 fig1, axes = plt.subplots(1, 2, figsize=(16, 7))
 fig1.patch.set_facecolor("#f8f8f8")
 
-# -- Left: T matrix heatmap --
+# Left: T matrix heatmap
 ax = axes[0]
 T_log = np.log10(np.where(T_matrix > 0, T_matrix, np.nan))
 im = ax.imshow(T_log, cmap="plasma", aspect="auto")
@@ -518,7 +518,7 @@ ax.text(
     va="top",
     bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
 )
-# -- Right: station map with wind arrows --
+# Right: station map with wind arrows
 ax2 = axes[1]
 sc = ax2.scatter(
     lons,
@@ -565,7 +565,11 @@ plt.show()
 
 
 # %%
-T_matrix
+T_matrix = np.array(T_matrix)
+np.set_printoptions(
+    linewidth=140,
+)
+print(T_matrix)
 
 # %%
 # Print wind directions to verify physical plausibility
@@ -583,10 +587,7 @@ for i, rec in enumerate(STATION_NAMES):
         if i != j:
             G.add_edge(src, rec, weight=T_matrix[i, j])
 
-print(f"\nTransport edges: {G.number_of_edges()}")
-print("Edges (source → receptor):")
-for u, v, data in G.edges(data=True):
-    print(f"  {u} → {v}: {data['weight']:.4f}")
+print(f"Transport edges: {G.number_of_edges()}")
 
 # %%
 import matplotlib.pyplot as plt
@@ -610,8 +611,8 @@ nx.draw_networkx_nodes(
 # Draw labels
 nx.draw_networkx_labels(G, pos, font_size=9, font_weight="bold")
 # Draw directed edges
-red_edges = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] > 0]
-dotted_edges = [(u, v) for u, v, d in G.edges(data=True) if d['weight'] == 0]
+red_edges = [(u, v) for u, v, d in G.edges(data=True) if d["weight"] > 0]
+dotted_edges = [(u, v) for u, v, d in G.edges(data=True) if d["weight"] == 0]
 
 # 2. Draw the active transport paths (Red, Solid)
 nx.draw_networkx_edges(
@@ -626,7 +627,7 @@ nx.draw_networkx_edges(
     connectionstyle="arc3,rad=0.1",
 )
 
-# 3. Draw the zero-transport paths (Gray, Dotted)
+# # 3. Draw the zero-transport paths (Gray, Dotted)
 # nx.draw_networkx_edges(
 #     G,
 #     pos,
@@ -635,14 +636,13 @@ nx.draw_networkx_edges(
 #     style="dotted",
 #     arrows=False,          # Turning off arrows for 0-weight makes it cleaner
 #     width=1,
-#     connectionstyle="arc3,rad=0.1",
+#     connectionstyle="arc3,rad=00.1",
 # )
-# Edge labels (transport weights)
-# Edge labels: Filter for weight > 0 and calculate log10(weight)
+# Edge labels (transport weights) : Filter for weight > 0 and calculate log10(weight)
 edge_labels = {
-    (u, v): f"{math.log10(d['weight']):.2f}" 
-    for u, v, d in G.edges(data=True) 
-    if d['weight'] > 0
+    (u, v): f"{math.log10(d['weight']):.2f}"
+    for u, v, d in G.edges(data=True)
+    if d["weight"] > 0
 }
 nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
 
@@ -660,7 +660,6 @@ plt.show()
 
 In atmospheric science, tracing pollutants back to their origin requires shifting from a **forward simulation** (predicting dispersion from known stacks) to an **inverse simulation** (estimating unknown emission sources using sensor observations).
 
----
 
 ## 1. Mathematical Formulation
 
@@ -685,8 +684,8 @@ $$\mathbf{Q} = \begin{bmatrix} Q_1 \\ Q_2 \\ \vdots \\ Q_s \end{bmatrix}$$
 * **The Atmospheric Transport Matrix ($\mathbf{T} \in \mathbb{R}^{r \times s}$):**
 A sensitivity matrix where each element $T_{ij}$ represents the dilution physics between source $j$ and receptor $i$.
 $$\mathbf{T} = \begin{bmatrix}
-T_{11} & T_{12} & \dots & T_{1s} \
-T_{21} & T_{22} & \dots & T_{2s} \
+T_{11} & T_{12} & \dots & T_{1s} \  
+T_{21} & T_{22} & \dots & T_{2s} \  
 \vdots & \vdots & \ddots & \vdots \
 T_{r1} & T_{r2} & \dots & T_{rs}
 \end{bmatrix}$$
@@ -791,11 +790,13 @@ from scipy.linalg import lstsq, svd
 Q_true = None    
 Q_lstsq, res_lstsq, rank_lstsq, sv_lstsq = lstsq(T_matrix, C_obs)
 print("[Method 1]  scipy.linalg.lstsq  (minimum-norm least squares)")
+print(T_matrix.shape)
 print(f"Matrix rank: {rank_lstsq}")
 print(f"Singular values range: {sv_lstsq.min():.4f} - {sv_lstsq.max():.4f}")
 print(f"Condition number κ(T) = σ_max/σ_min = {sv_lstsq.max() / sv_lstsq.min():.2f}")
 print(f"Negative Q entries: {(Q_lstsq < 0).sum()}  (physically invalid)")
 
+# %%
 #  7.2  Non-negative least squares
 Q_nnls, res_nnls = nnls(T_matrix, C_obs)
 print("[Method 2]  scipy.optimize.nnls  (non-negative constraint)")
@@ -803,7 +804,7 @@ print(f"Residual norm ||C - T·Q||: {res_nnls:.4f}")
 print(f"Negative Q entries: {(Q_nnls < 0).sum()}  ✓")
 print(f"Zero Q entries    : {(Q_nnls == 0).sum()}  (stations with no attribution)")
 
-
+# %%
 #  7.3  Tikhonov regularisation
 def tikhonov(T, C, lam):
     """
@@ -816,13 +817,13 @@ def tikhonov(T, C, lam):
     return np.linalg.solve(A, b)
 
 
-LAMBDA = 1.0  # regularisation strength; tune via L-curve or cross-validation
+LAMBDA = 0.1  # regularisation strength; tune via L-curve or cross-validation
 Q_tikh = tikhonov(T_matrix, C_obs, LAMBDA)
 print(f"[Method 3]  Tikhonov regularisation  (λ = {LAMBDA})")
 print(f"  ||C - T·Q||: {np.linalg.norm(C_obs - T_matrix @ Q_tikh):.4f}")
 print(f"  Negative Q entries: {(Q_tikh < 0).sum()}")
 
-
+# %%
 #  7.4  Truncated SVD
 def truncated_svd_solve(T, C, n_components=None, thresh_ratio=1e-3):
     """
@@ -840,6 +841,7 @@ print("[Method 4]  Truncated SVD  (threshold ratio = 1e-3)")
 print(f"||C - T·Q||: {np.linalg.norm(C_obs - T_matrix @ Q_svd):.4f}")
 print(f"Negative Q entries: {(Q_svd < 0).sum()}")
 
+# %%
 #  7.5  Comparison table
 methods = ["lstsq", "NNLS", "Tikhonov", "TruncSVD"]
 Q_all = [Q_lstsq, Q_nnls, Q_tikh, Q_svd]
@@ -852,13 +854,12 @@ if Q_true is not None:
     df_Q["Q_true"] = Q_true
 
 print("Inferred Q per station (g/s):")
-print(df_Q[methods].round(4).to_string())
+display(df_Q[methods].round(4))
 
 print("Residuals  ||C - TQ||  per method:")
 for m, Q in zip(methods, Q_all):
     r = np.linalg.norm(C_obs - T_matrix @ Q)
-    print(f"    {m:12s}: {r:.4f}")
-
+    print(f"{m:12s}: {r:.4f}")
 
 # %%
 # Block 8 — FIGURE 2: Classical solver comparison
@@ -873,7 +874,7 @@ fig2.suptitle(
 colors = ["#4C72B0", "#DD8452", "#55A868", "#C44E52"]
 x_ticks = np.arange(N)
 
-# -- Panel A: Q per method --
+# Panel A: Q per method
 ax = axes2[0, 0]
 width = 0.2
 for k, (m, Q, col) in enumerate(zip(methods, Q_all, colors)):
@@ -895,7 +896,7 @@ ax.set_title("A  |  Inferred Q per station")
 ax.legend(fontsize=8)
 ax.grid(axis="y", alpha=0.3)
 
-# -- Panel B: Observed vs Reconstructed C --
+# Panel B: Observed vs Reconstructed C
 ax = axes2[0, 1]
 ax.plot(C_obs, "ko-", label="C_obs", lw=1.5, ms=5)
 for m, Q, col in zip(methods, Q_all, colors):
@@ -907,7 +908,7 @@ ax.set_title("B  |  Observed vs Reconstructed  C")
 ax.legend(fontsize=7)
 ax.grid(alpha=0.3)
 
-# -- Panel C: Singular value spectrum --
+# Panel C: Singular value spectrum
 ax = axes2[1, 0]
 U, s_vals, Vt = svd(T_matrix)
 ax.semilogy(range(1, len(s_vals) + 1), s_vals, "bo-", ms=6)
@@ -929,7 +930,7 @@ ax.text(
     bbox=dict(boxstyle="round", fc="wheat", alpha=0.8),
 )
 
-# -- Panel D: L-curve (Tikhonov) --
+# Panel D: L-curve (Tikhonov)
 ax = axes2[1, 1]
 lambdas = np.logspace(-4, 4, 80)
 resid_n = []
@@ -964,47 +965,73 @@ print("  Saved: fig2_classical_solvers.png")
 plt.show()
 
 # %%
-# Block 9 — SYMPY: BAYESIAN INFERENCE (prior, likelihood, posterior)
-print("\n Block 9 : Bayesian inference — symbolic derivation ")
+from sympy import symbols, pi, exp, log, sqrt, latex
 
+#  9.1 Symbol Definitions
 Q_i = symbols("Q_i", positive=True)
-mu_0 = symbols("mu_0", positive=True)  # prior mean
-sigma_prior = symbols("sigma_0", positive=True)
-sigma_obs = symbols("sigma_C", positive=True)
+mu_0 = symbols(r"\mu_0", real=True)  # Prior location parameter
+sigma_prior = symbols(r"\sigma_0", positive=True)  # Prior scale parameter
+sigma_obs = symbols(r"\sigma_C", positive=True)  # Observation error standard deviation
 C_i, T_i = symbols("C_i T_i", positive=True)
 
-# Prior: Q_i ~ LogNormal(mu_0, sigma_0)  → because Q_i > 0 always
-# log Q_i ~ Normal(mu_0, sigma_0²)
-log_prior = (
-    -((sp.ln(Q_i) - mu_0) ** 2) / (2 * sigma_prior**2)
-    - sp.ln(Q_i)
-    - sp.ln(sigma_prior)
-    - sp.ln(sp.sqrt(2 * pi))
+#  9.2 Prior: Log-Normal Formulation
+# Enforces the hard physical constraint Q_i > 0 naturally.
+log_prior_expr = (
+    -((log(Q_i) - mu_0) ** 2) / (2 * sigma_prior**2)
+    - log(Q_i)
+    - log(sigma_prior)
+    - log(sqrt(2 * pi))
 )
-print("  [Eq 11]  Prior on emission rates — LogNormal:")
-print(r"  Q_i ~ LogNormal(μ₀, σ₀²)")
-print(r"  log p(Q_i) ∝ -(log Q_i - μ₀)² / (2σ₀²) - log Q_i")
 
-# Likelihood: C ~ Normal(T·Q, sigma_obs²) per station
-log_lik = (
-    -((C_i - T_i * Q_i) ** 2) / (2 * sigma_obs**2)
-    - sp.log(sigma_obs)
-    - sp.log(sp.sqrt(2 * pi))
+print("1. Prior Model Formulation ")
+print("[Eq 11] Prior on emission rates — Log-Normal (Q_i > 0):")
+display(Math(r"\huge Q_i \sim \text{LogNormal}(\mu_0, \sigma_0^2)"))
+display(Math(f"\\huge \\ln p(Q_i) = {latex(log_prior_expr)}"))
+
+
+#  9.3 Likelihood: Gaussian Observation Noise
+log_lik_expr = (
+    -((C_i - T_i * Q_i) ** 2) / (2 * sigma_obs**2) - log(sigma_obs) - log(sqrt(2 * pi))
 )
-print("  [Eq 12]  Likelihood — Gaussian observation noise:")
-print(r"  C_i | Q, T ~ Normal(Σ_j T_{ij} Q_j , σ_C²)")
-print(r"  log L ∝ -(C_i - T_i · Q_i)² / (2σ_C²)")
 
-# Posterior (Bayes' theorem):
-print("  [Eq 13]  Posterior (Bayes' theorem):")
-print(r"  log p(Q | C) ∝ log p(C | Q) + log p(Q)")
-print("  With a LogNormal prior this does NOT have a closed-form posterior,")
-print("  so we use MCMC (No-U-Turn Sampler in PyMC) to sample from p(Q | C).")
-print("  [Eq 14]  Advantages of the Bayesian approach:")
-print("    • Full posterior distribution → uncertainty bounds on each Q_i")
-print("    • Physical constraints (Q > 0) are built into the prior")
-print("    • Can incorporate domain knowledge (e.g. known emission inventories)")
-print("    • Model comparison via WAIC / LOO-CV")
+print("2. Observation Likelihood ")
+print("[Eq 12] Likelihood — Gaussian measurement error model:")
+display(Math(r"\huge C_i \mid Q_i, T_i \sim \mathcal{N}(T_i Q_i, \sigma_C^2)"))
+display(Math(rf"\huge \ln \mathcal{{L}}(C_i \mid Q_i) = {latex(log_lik_expr)}"))
+
+
+#  9.4 Posterior Framework & Mechanics
+log_posterior_unnormalized = (
+    (log(Q_i) - mu_0) ** 2 / (2 * sigma_prior**2)
+    + log(Q_i)
+    + (C_i - T_i * Q_i) ** 2 / (2 * sigma_obs**2)
+)
+
+print("3. Bayesian Posterior Integration ")
+print("[Eq 13] Unnormalized log-posterior expansion via Bayes' Theorem:")
+display(Math(r"\huge \ln p(Q \mid C) \propto \ln p(C \mid Q) + \ln p(Q)"))
+display(
+    Math(
+        f"\\huge \\ln p(Q_i \mid C_i) \propto - \\left[ {latex(log_posterior_unnormalized)} \\right]"
+    )
+)
+
+print(
+    "\n> 💡 Note: Combining a Gaussian Likelihood with a Log-Normal Prior destroys conjugacy.\n" \
+    "The posterior lacks a closed-form analytical solution. \n" \
+    "We implement Markov Chain Monte Carlo (MCMC via NUTS in PyMC) to sample the field.\n"
+)
+
+#  9.5 Core Advantages Summary
+print("4. Strategic Advantages of the Bayesian Framework ")
+print("[Eq 14] Operational Benefits over Classical Inversion:")
+print(
+    "• Full Posterior Quantile Bounds : Yields exact uncertainty intervals on every source estimation Q_i\n"
+    "• Natural Regularization         : Physical boundary rules (Q > 0) are mathematically absolute\n"
+    "• Domain Knowledge Integration   : Prior structures easily integrate known baseline emission inventories\n"
+    "• Information-Theoretic Audits  : Allows model validation and cross-validation via WAIC / LOO-CV metrics\n"
+)
+
 
 # %%
 # Block 10 — BAYESIAN INFERENCE WITH PyMC
@@ -1018,29 +1045,20 @@ C_scale = C_obs.max()
 T_norm = T_matrix / T_scale
 C_norm = C_obs / C_scale
 
-print(f"  T_scale = {T_scale:.4f}   C_scale = {C_scale:.4f}")
-print("  Model:")
-print("    Q_i ~ HalfNormal(σ = 2.0)   [all Q ≥ 0 by construction]")
-print("    C_pred = T_norm · Q")
-print("    σ_obs ~ HalfNormal(0.2)")
-print("    C_obs ~ Normal(C_pred, σ_obs)")
+print(f"T_scale = {T_scale:.4f}   C_scale = {C_scale:.4f}")
 
 with pm.Model() as bayes_model:
     # Prior: HalfNormal enforces Q ≥ 0 without log-transform tricks
     # σ=2 → 95% prior mass in [0, ~3.9] emission units (after rescaling)
     Q_bayes = pm.HalfNormal("Q", sigma=2.0, shape=N)
-
     # Predicted concentrations (linear model)
     C_pred = pm.math.dot(T_norm, Q_bayes)
-
     # Observation noise
     sigma_obs_rv = pm.HalfNormal("sigma_obs", sigma=0.2)
-
     # Likelihood
     C_like = pm.Normal("C_obs", mu=C_pred, sigma=sigma_obs_rv, observed=C_norm)
-
     # Inference — NUTS sampler
-    print("  Sampling with NUTS (2 chains x 1500 draws, 500 tune steps)…")
+    print("Sampling with NUTS (2 chains x 1500 draws, 500 tune steps)…")
     trace = pm.sample(
         1500,
         tune=500,
@@ -1051,16 +1069,9 @@ with pm.Model() as bayes_model:
         return_inferencedata=True,
         random_seed=42,
     )
-
 print("Sampling complete.")
 
 # %%
-import arviz as az
-# Block 11 — POSTERIOR ANALYSIS
-
-summary = az.summary(trace, var_names=["Q"], round_to=4)
-print(summary)
-
 # Rescale back to original units: Q_actual = Q_sampled * C_scale / T_scale
 Q_posterior = trace.posterior["Q"].values  # shape: (chain, draw, N)
 Q_rescaled = Q_posterior * (C_scale / T_scale)  # g/s (approximate)
@@ -1076,15 +1087,13 @@ for i, s in enumerate(STATION_NAMES):
 
 # %%
 # Block 12 — FIGURE 3 : Bayesian posterior
-print("\n Block 12 : Figure 3 — Bayesian posterior ")
-
 fig3, axes3 = plt.subplots(1, 2, figsize=(16, 6))
 fig3.patch.set_facecolor("#f8f8f8")
 fig3.suptitle(
     "Bayesian Inference — Posterior Emission Rates  Q", fontsize=13, fontweight="bold"
 )
 
-# -- Left: Posterior mean + credible interval --
+# Left: Posterior mean + credible interval
 ax = axes3[0]
 y_pos = np.arange(N)
 ax.barh(
@@ -1116,7 +1125,7 @@ ax.legend(fontsize=8)
 ax.grid(axis="x", alpha=0.3)
 ax.axvline(0, color="gray", lw=0.8, ls="--")
 
-# -- Right: Posterior violin plots for top-8 stations --
+# Right: Posterior violin plots for top-8 stations
 ax2 = axes3[1]
 top8_idx = np.argsort(Q_mean)[-8:][::-1]
 data_violin = [Q_rescaled[:, :, k].flatten() for k in top8_idx]
@@ -1144,12 +1153,12 @@ plt.show()
 # Block 13 — FIGURE 4 : Attribution stacked bar (explainability)
 print("\n Block 13 : Figure 4 — Attribution (explainability) ")
 
-print("  [Eq 15]  Fractional attribution of source j to receptor i:")
-print(r"  α_{ij} = T_{ij} · Q_j  /  Σ_k T_{ik} · Q_k")
-print("  We compute this for NNLS (deterministic) and Bayesian mean.")
-print("  This is the core 'explainability' output: for each monitoring")
-print("  station, what fraction of the measured pollution came from each")
-print("  other station (as a source)?")
+print("[Eq 15]  Fractional attribution of source j to receptor i:")
+print(r"α_{ij} = T_{ij} · Q_j  /  Σ_k T_{ik} · Q_k")
+print("We compute this for NNLS (deterministic) and Bayesian mean.")
+print("This is the core 'explainability' output: for each monitoring")
+print("station, what fraction of the measured pollution came from each")
+print("other station (as a source)?")
 
 
 def attribution_matrix(T, Q):
@@ -1228,12 +1237,11 @@ plt.show()
 
 
 # %%
+import arviz as az
 # Block 14 — TRACE DIAGNOSTICS (R-hat, ESS)
-print("\n Block 14 : MCMC diagnostics ")
-
-print("  Convergence criteria:")
-print("  • R̂ (Gelman-Rubin) < 1.01  → chains have mixed")
-print("  • ESS_bulk > 400           → sufficient effective samples")
+print("Convergence criteria:")
+print("• R̂ (Gelman-Rubin) < 1.01  → chains have mixed")
+print("• ESS_bulk > 400           → sufficient effective samples")
 
 diag = az.summary(trace, var_names=["Q"], kind="diagnostics")
 print(diag.to_string())
@@ -1247,7 +1255,7 @@ fig_trace.suptitle(
 )
 for k in range(n_show):
     samples_k = Q_post[:, :, k]  # (chain, draw)
-    # -- trace --
+    # trace
     ax_t = tr_axes[k, 0]
     for ch in range(samples_k.shape[0]):
         ax_t.plot(samples_k[ch], lw=0.4, alpha=0.7)
@@ -1255,7 +1263,7 @@ for k in range(n_show):
     ax_t.tick_params(labelsize=7)
     if k == 0:
         ax_t.set_title("Trace", fontsize=9)
-    # -- density --
+    # density
     ax_d = tr_axes[k, 1]
     for ch in range(samples_k.shape[0]):
         ax_d.hist(samples_k[ch], bins=40, alpha=0.5, density=True)
@@ -1266,3 +1274,5 @@ plt.tight_layout()
 plt.savefig("fig5_trace.png", dpi=100, bbox_inches="tight")
 print("Saved: fig5_trace.png")
 plt.show()
+
+# %%

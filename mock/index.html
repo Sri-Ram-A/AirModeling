@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GaussianFlow — Transport Matrix Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#eef9ff', 100: '#d8f1ff', 200: '#b4e4ff', 300: '#7fd1ff', 400: '#3db8ff', 500: '#0ea0f0', 600: '#0280d0', 700: '#0267aa', 700: '#02578c', 900: '#063557' },
+                        slate: { 925: '#0d1424', 950: '#080e1a' }
+                    },
+                    fontFamily: {
+                        display: ['"Syne"', 'sans-serif'],
+                        body: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease forwards',
+                        'slide-up': 'slideUp 0.4s ease forwards',
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+                        slideUp: { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: #080e1a;
+            color: #e2e8f0;
+            font-family: 'DM Sans', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1424;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0ea0f0;
+        }
+
+        /* Nav item active glow */
+        .nav-item.active {
+            background: rgba(14, 160, 240, 0.12);
+            border-left: 2px solid #0ea0f0;
+            color: #7fd1ff;
+        }
+
+        .nav-item {
+            border-left: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background: rgba(14, 160, 240, 0.06);
+            color: #b4e4ff;
+        }
+
+        /* Page iframe */
+        #page-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #080e1a;
+        }
+
+        /* Glow effects */
+        .glow-blue {
+            box-shadow: 0 0 20px rgba(14, 160, 240, 0.15);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        /* Progress indicator */
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: #0ea0f0;
+            box-shadow: 0 0 8px #0ea0f0;
+        }
+
+        .step-dot.done {
+            background: #22c787;
+        }
+
+        .step-dot.todo {
+            background: #1e3a5f;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        /* Grid bg pattern */
+        .grid-bg {
+            background-image: linear-gradient(rgba(14, 160, 240, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 160, 240, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+</head>
+
+<body class="grid-bg">
+
+    <!-- ═══════════════ LAYOUT SHELL ═══════════════ -->
+    <div
+        style="display:grid; grid-template-columns: 260px 1fr; grid-template-rows: 52px 1fr; height: 100vh; position: relative; z-index: 1;">
+
+        <!-- ══ TOP BAR ══ -->
+        <header style="grid-column: 1 / -1; grid-row: 1;"
+            class="flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950 bg-opacity-90 backdrop-blur-sm"
+            style="backdrop-filter:blur(12px);">
+            <div class="flex items-center gap-3">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <div
+                        style="width:28px;height:28px;background:linear-gradient(135deg,#0ea0f0,#0267aa);border-radius:7px;display:flex;align-items:center;justify-content:center;">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M2 10 Q7 2 12 10" stroke="white" stroke-width="1.8" stroke-linecap="round"
+                                fill="none" />
+                            <circle cx="7" cy="7" r="1.5" fill="white" />
+                        </svg>
+                    </div>
+                    <span
+                        style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:-0.02em;color:#e2e8f0;">Gaussian<span
+                            style="color:#0ea0f0;">Flow</span></span>
+                </div>
+                <div class="h-4 w-px bg-slate-700 mx-1"></div>
+                <span class="badge"
+                    style="background:rgba(14,160,240,0.12);color:#7fd1ff;border:1px solid rgba(14,160,240,0.25);">Transport
+                    Matrix Academy</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <!-- Progress dots -->
+                <div class="flex items-center gap-2 mr-2">
+                    <span
+                        style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;margin-right:4px;">PROGRESS</span>
+                    <div id="dot-0" class="step-dot active"></div>
+                    <div id="dot-1" class="step-dot todo"></div>
+                    <div id="dot-2" class="step-dot todo"></div>
+                    <div id="dot-3" class="step-dot todo"></div>
+                    <div id="dot-4" class="step-dot todo"></div>
+                    <div id="dot-5" class="step-dot todo"></div>
+                </div>
+                <div style="font-size:11px;color:#475569;font-family:'JetBrains Mono',monospace;" id="step-counter">Step
+                    1 / 6</div>
+            </div>
+        </header>
+
+        <!-- ══ SIDEBAR ══ -->
+        <aside
+            style="grid-column:1;grid-row:2;background:#080e1a;border-right:1px solid #1e293b;overflow-y:auto;padding:16px 0;"
+            class="flex flex-col">
+
+            <!-- Section: Introduction -->
+            <div class="px-4 mb-2 mt-1">
+                <div
+                    style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#475569;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">
+                    Introduction</div>
+            </div>
+            <nav-item data-page="overview.html" data-step="0"
+                class="nav-item active flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(14,160,240,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <rect x="1" y="1" width="5" height="5" rx="1" fill="#0ea0f0" />
+                        <rect x="8" y="1" width="5" height="5" rx="1" fill="#0ea0f0" opacity="0.5" />
+                        <rect x="1" y="8" width="5" height="5" rx="1" fill="#0ea0f0" opacity="0.5" />
+                        <rect x="8" y="8" width="5" height="5" rx="1" fill="#0ea0f0" opacity="0.3" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">Overview</div>
+                    <div style="font-size:10px;color:#64748b;">Gaussian Plume Model</div>
+                </div>
+            </nav-item>
+
+            <!-- Section: Core Concepts -->
+            <div class="px-4 mt-4 mb-2">
+                <div
+                    style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#475569;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">
+                    Core Geometry</div>
+            </div>
+
+            <nav-item data-page="haversine.html" data-step="1"
+                class="nav-item flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(34,199,135,0.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="5.5" stroke="#22c787" stroke-width="1.2" fill="none" />
+                        <path d="M2 7 Q7 3 12 7" stroke="#22c787" stroke-width="1.2" stroke-dasharray="2 1"
+                            fill="none" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">Haversine Distance</div>
+                    <div style="font-size:10px;color:#64748b;">Great-circle geometry</div>
+                </div>
+            </nav-item>
+
+            <nav-item data-page="bearing.html" data-step="2"
+                class="nav-item flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(245,166,35,0.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="5.5" stroke="#f5a623" stroke-width="1.2" fill="none" />
+                        <path d="M7 7 L7 2" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round" />
+                        <path d="M7 7 L10 4.5" stroke="#f5a623" stroke-width="1.2" stroke-linecap="round"
+                            opacity="0.5" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">Bearing Angle</div>
+                    <div style="font-size:10px;color:#64748b;">Source → Receptor direction</div>
+                </div>
+            </nav-item>
+
+            <!-- Section: Atmospheric Physics -->
+            <div class="px-4 mt-4 mb-2">
+                <div
+                    style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#475569;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">
+                    Atmospheric Physics</div>
+            </div>
+
+            <nav-item data-page="stability.html" data-step="3"
+                class="nav-item flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(167,139,250,0.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 12 Q5 4 7 4 Q9 4 12 12" stroke="#a78bfa" stroke-width="1.2" fill="none"
+                            stroke-linecap="round" />
+                        <path d="M4 12 Q7 7 10 12" stroke="#a78bfa" stroke-width="1.2" fill="none" opacity="0.5"
+                            stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">Stability Class & σ</div>
+                    <div style="font-size:10px;color:#64748b;">Pasquill-Gifford dispersion</div>
+                </div>
+            </nav-item>
+
+            <nav-item data-page="windframe.html" data-step="4"
+                class="nav-item flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(56,189,248,0.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7 L12 7" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" />
+                        <path d="M7 2 L7 12" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" opacity="0.5" />
+                        <path d="M9 5 L12 7 L9 9" fill="#38bdf8" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">Wind Frame Projection</div>
+                    <div style="font-size:10px;color:#64748b;">Downwind & crosswind axes</div>
+                </div>
+            </nav-item>
+
+            <!-- Section: Transport Matrix -->
+            <div class="px-4 mt-4 mb-2">
+                <div
+                    style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#475569;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">
+                    Transport Matrix</div>
+            </div>
+
+            <nav-item data-page="transport.html" data-step="5"
+                class="nav-item flex items-center gap-3 px-4 py-2.5 cursor-pointer" onclick="navigate(this)">
+                <div
+                    style="width:28px;height:28px;background:rgba(251,113,133,0.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <rect x="1" y="1" width="3" height="3" rx="0.5" fill="#fb7185" />
+                        <rect x="5.5" y="1" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.6" />
+                        <rect x="10" y="1" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.3" />
+                        <rect x="1" y="5.5" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.6" />
+                        <rect x="5.5" y="5.5" width="3" height="3" rx="0.5" fill="#fb7185" />
+                        <rect x="10" y="5.5" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.4" />
+                        <rect x="1" y="10" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.2" />
+                        <rect x="5.5" y="10" width="3" height="3" rx="0.5" fill="#fb7185" opacity="0.5" />
+                        <rect x="10" y="10" width="3" height="3" rx="0.5" fill="#fb7185" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:600;color:#e2e8f0;">T<sub>ij</sub> & Full Matrix</div>
+                    <div style="font-size:10px;color:#64748b;">Building C = T · Q</div>
+                </div>
+            </nav-item>
+
+            <!-- Bottom nav utilities -->
+            <div class="mt-auto px-4 pb-4 pt-6 border-t border-slate-800 mx-3 mt-6">
+                <div
+                    style="font-size:10px;color:#475569;font-family:'JetBrains Mono',monospace;text-align:center;line-height:1.7;">
+                    Gaussian Plume · Transport Matrix<br>
+                    <span style="color:#1e293b;">Educational Platform</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ══ MAIN CONTENT (iframe) ══ -->
+        <main style="grid-column:2;grid-row:2;overflow:hidden;position:relative;">
+            <iframe id="page-frame" src="overview.html" title="Content"></iframe>
+        </main>
+
+    </div>
+
+    <script>
+        const items = document.querySelectorAll('nav-item');
+        const dots = document.querySelectorAll('.step-dot');
+        const stepCounter = document.getElementById('step-counter');
+        let currentStep = 0;
+
+        function navigate(el) {
+            items.forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            const page = el.getAttribute('data-page');
+            const step = parseInt(el.getAttribute('data-step'));
+            document.getElementById('page-frame').src = page;
+
+            // Update dots
+            currentStep = step;
+            dots.forEach((d, i) => {
+                d.className = 'step-dot ' + (i < step ? 'done' : i === step ? 'active' : 'todo');
+            });
+            stepCounter.textContent = `Step ${step + 1} / 6`;
+        }
+    </script>
+</body>
+
+</html>

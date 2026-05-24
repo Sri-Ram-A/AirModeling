@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Bearing Angle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { display: ['"Syne"', 'sans-serif'], body: ['"DM Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } }</script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: #080e1a;
+            color: #e2e8f0;
+            font-family: 'DM Sans', sans-serif;
+            overflow: auto;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1424
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 3px
+        }
+
+        .card {
+            background: #0d1424;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 18px
+        }
+
+        .eq-box {
+            background: #060c16;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            color: #94a3b8;
+            line-height: 1.8;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase
+        }
+
+        .kpi {
+            background: #060c16;
+            border: 1px solid #1e293b;
+            border-radius: 9px;
+            padding: 10px 14px;
+        }
+
+        .kpi-label {
+            font-size: 9.5px;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+
+        .kpi-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        input[type=range] {
+            accent-color: #f5a623;
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .glow-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(245, 166, 35, 0.4), transparent)
+        }
+
+        .callout {
+            border-left: 3px solid;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <div class="mb-5">
+        <div class="tag mb-3"
+            style="background:rgba(245,166,35,0.1);color:#f5a623;border:1px solid rgba(245,166,35,0.2);">Module 3 — Core
+            Geometry</div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#f1f5f9;"
+            class="mb-1">Bearing Angle θ</h1>
+        <p style="color:#94a3b8;font-size:13.5px;max-width:640px;line-height:1.7;">The bearing tells us the <strong
+                style="color:#e2e8f0;">compass direction</strong> from the source to the receptor — measured clockwise
+            from True North. This is the geometric direction before we apply wind rotation.</p>
+    </div>
+
+    <div class="glow-line mb-5"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;">
+
+        <!-- Left col -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+            <!-- Interactive visualizer -->
+            <div class="card p-3">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;">
+                            Spherical Bearing Visualizer</div>
+                        <div style="font-size:10.5px;color:#64748b;">Drag the receptor point or use sliders</div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:10.5px;color:#64748b;">Lat₂</span>
+                        <input type="range" id="bLat2" min="12.72" max="13.10" step="0.001" value="13.03"
+                            style="width:90px">
+                        <span id="bLat2V"
+                            style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#f5a623;min-width:48px;">13.030</span>
+                        <span style="font-size:10.5px;color:#64748b;">Lon₂</span>
+                        <input type="range" id="bLon2" min="77.38" max="77.82" step="0.001" value="77.72"
+                            style="width:90px">
+                        <span id="bLon2V"
+                            style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#f5a623;min-width:48px;">77.720</span>
+                    </div>
+                </div>
+                <canvas id="bearCanvas" width="640" height="360"
+                    style="width:100%;border-radius:8px;background:#060c16;cursor:crosshair;"></canvas>
+                <div class="flex gap-4 mt-2 flex-wrap">
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#0ea0f0;display:inline-block"></span>Blue
+                        arc = bearing from N</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:8px;height:8px;border-radius:2px;background:rgba(30,58,95,0.8);display:inline-block;border:1px solid #1e3a5f"></span>True
+                        North reference</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block"></span>Receptor
+                        (movable)</div>
+                </div>
+            </div>
+
+            <!-- KPIs -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                <div class="kpi">
+                    <div class="kpi-label">Bearing θ</div>
+                    <div class="kpi-val" id="kpi-bear" style="color:#f5a623;">—°</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">y (sin term)</div>
+                    <div class="kpi-val" id="kpi-y" style="color:#a78bfa;">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">x (cos term)</div>
+                    <div class="kpi-val" id="kpi-x" style="color:#22c787;">—</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Compass</div>
+                    <div class="kpi-val" id="kpi-compass" style="color:#38bdf8;font-size:13px;">—</div>
+                </div>
+            </div>
+
+            <!-- Formula derivation -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:14px;">
+                    Bearing Formula — Derivation</div>
+
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:5px;">The full formula:
+                        </div>
+                        <div class="eq-box">$$\theta =
+                            \operatorname{atan2}\!\left(\sin(\Delta\lambda)\cos(\varphi_2),\;\cos(\varphi_1)\sin(\varphi_2)-\sin(\varphi_1)\cos(\varphi_2)\cos(\Delta\lambda)\right)$$
+                            $$\theta_{deg} = \left(\theta \cdot \frac{180}{\pi}\right) \bmod 360°$$</div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div>
+                            <div style="font-size:11.5px;font-weight:600;color:#a78bfa;margin-bottom:5px;">y component
+                                (numerator):</div>
+                            <div class="eq-box" style="font-size:11px;">y = sin(Δλ) · cos(φ₂)
+
+                                Measures the <span style="color:#a78bfa;">East-West</span>
+                                component of displacement.
+                                Large y → more eastward/westward.</div>
+                        </div>
+                        <div>
+                            <div style="font-size:11.5px;font-weight:600;color:#22c787;margin-bottom:5px;">x component
+                                (denominator):</div>
+                            <div class="eq-box" style="font-size:11px;">x = cos(φ₁)·sin(φ₂)
+                                − sin(φ₁)·cos(φ₂)·cos(Δλ)
+
+                                Measures the <span style="color:#22c787;">North-South</span>
+                                component of displacement.</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style="font-size:11.5px;font-weight:600;color:#38bdf8;margin-bottom:5px;">Why atan2 instead
+                            of atan?</div>
+                        <div class="callout" style="border-color:#38bdf8;background:rgba(56,189,248,0.05);">
+                            <strong style="color:#38bdf8;">atan2(y, x)</strong> knows which <em>quadrant</em> the angle
+                            is in because it receives both y and x separately. Plain atan(y/x) would lose the sign
+                            information and produce angles only in [−90°, +90°]. atan2 gives the full [0°, 360°] range
+                            needed for compass bearings.
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style="font-size:11.5px;font-weight:600;color:#f5a623;margin-bottom:5px;">Compass direction
+                            mapping:</div>
+                        <div
+                            style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;font-family:'JetBrains Mono',monospace;">
+                            <div
+                                style="background:#060c16;border:1px solid #1e293b;border-radius:6px;padding:6px 8px;text-align:center;">
+                                <div style="color:#64748b;font-size:9px;">0°</div>
+                                <div style="color:#e2e8f0;">NORTH</div>
+                            </div>
+                            <div
+                                style="background:#060c16;border:1px solid #1e293b;border-radius:6px;padding:6px 8px;text-align:center;">
+                                <div style="color:#64748b;font-size:9px;">90°</div>
+                                <div style="color:#e2e8f0;">EAST</div>
+                            </div>
+                            <div
+                                style="background:#060c16;border:1px solid #1e293b;border-radius:6px;padding:6px 8px;text-align:center;">
+                                <div style="color:#64748b;font-size:9px;">180°</div>
+                                <div style="color:#e2e8f0;">SOUTH</div>
+                            </div>
+                            <div
+                                style="background:#060c16;border:1px solid #1e293b;border-radius:6px;padding:6px 8px;text-align:center;">
+                                <div style="color:#64748b;font-size:9px;">270°</div>
+                                <div style="color:#e2e8f0;">WEST</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right col -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+            <!-- Compass rose diagram -->
+            <div class="card p-3">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:8px;">
+                    Compass Rose</div>
+                <canvas id="compassCanvas" width="280" height="260"
+                    style="width:100%;border-radius:8px;background:#060c16;"></canvas>
+            </div>
+
+            <!-- Live computation trace -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:10px;">
+                    Live Computation</div>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                    <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                        <div
+                            style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:3px;">
+                            Δλ</div>
+                        <div id="tr-dl" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a78bfa;">—
+                        </div>
+                    </div>
+                    <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                        <div
+                            style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:3px;">
+                            y = sin(Δλ)·cos(φ₂)</div>
+                        <div id="tr-y" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a78bfa;">—
+                        </div>
+                    </div>
+                    <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                        <div
+                            style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:3px;">
+                            x = cos(φ₁)sin(φ₂) − sin(φ₁)cos(φ₂)cos(Δλ)</div>
+                        <div id="tr-x" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#22c787;">—
+                        </div>
+                    </div>
+                    <div style="background:#060c16;border:1px solid #1e293b;border-radius:7px;padding:8px 12px;">
+                        <div
+                            style="font-size:9.5px;color:#64748b;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:3px;">
+                            θ = atan2(y,x) → degrees mod 360</div>
+                        <div id="tr-bear"
+                            style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#f5a623;font-weight:600;">
+                            —</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Important note -->
+            <div class="callout" style="border-color:#f5a623;background:rgba(245,166,35,0.05);">
+                <strong style="color:#f5a623;">Why bearing matters for T<sub>ij</sub>:</strong><br>
+                <span style="color:#94a3b8;font-size:12px;line-height:1.65;">The bearing θ tells us the direction from
+                    source to receptor in geographic (compass) space. We then <em>compare</em> it to the wind direction
+                    to find out if the receptor is downwind, upwind, or crosswind — which determines the entire plume
+                    calculation.</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const lat1 = 12.9757, lon1 = 77.5661;
+
+        function bearing(la1, lo1, la2, lo2) {
+            const p1 = la1 * Math.PI / 180, p2 = la2 * Math.PI / 180, dl = (lo2 - lo1) * Math.PI / 180;
+            const y = Math.sin(dl) * Math.cos(p2);
+            const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+            const th = Math.atan2(y, x);
+            return { b: ((th * 180 / Math.PI) % 360 + 360) % 360, y, x, dl, th };
+        }
+
+        function compass(deg) {
+            const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            return dirs[Math.floor(((deg + 11.25) % 360) / 22.5)];
+        }
+
+        const canvas = document.getElementById('bearCanvas');
+        const ctx = canvas.getContext('2d');
+        const cCanvas = document.getElementById('compassCanvas');
+        const cCtx = cCanvas.getContext('2d');
+
+        function toPixel(lat, lon, cx, cy, scl) {
+            return { px: cx + (lon - 77.5661) * scl * 111 * Math.cos(12.97 * Math.PI / 180), py: cy - (lat - 12.9757) * scl * 111 };
+        }
+
+        function drawArrow(ctx, x1, y1, x2, y2, col, lw, hl = 10) {
+            const ang = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - hl * Math.cos(ang - Math.PI / 6), y2 - hl * Math.sin(ang - Math.PI / 6));
+            ctx.lineTo(x2 - hl * Math.cos(ang + Math.PI / 6), y2 - hl * Math.sin(ang + Math.PI / 6));
+            ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+
+        let bearingDeg = 45;
+
+        function drawMain() {
+            const W = canvas.width, H = canvas.height;
+            const la2 = parseFloat(document.getElementById('bLat2').value);
+            const lo2 = parseFloat(document.getElementById('bLon2').value);
+            document.getElementById('bLat2V').textContent = la2.toFixed(3);
+            document.getElementById('bLon2V').textContent = lo2.toFixed(3);
+
+            const cx = W / 2, cy = H / 2, scl = 120;
+            ctx.fillStyle = '#060c16'; ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = 'rgba(30,58,95,0.35)'; ctx.lineWidth = 1;
+            for (let x = 0; x < W; x += 55) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+            for (let y = 0; y < H; y += 55) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+            const { px: sx, py: sy } = toPixel(lat1, lon1, cx, cy, scl);
+            const { px: rx, py: ry } = toPixel(la2, lo2, cx, cy, scl);
+            const { b, y: yy, x: xx, dl, th } = bearing(lat1, lon1, la2, lo2);
+            bearingDeg = b;
+
+            // True North indicator from source
+            ctx.strokeStyle = 'rgba(100,116,139,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+            ctx.beginPath(); ctx.moveTo(sx, sy - 100); ctx.lineTo(sx, sy + 10); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#64748b'; ctx.font = '10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+            ctx.fillText('North', sx, sy - 108);
+
+            // Bearing arc (clockwise from north)
+            const arcR = 55;
+            ctx.beginPath();
+            ctx.arc(sx, sy, arcR, -Math.PI / 2, -Math.PI / 2 + b * Math.PI / 180, false);
+            ctx.strokeStyle = '#0ea0f0'; ctx.lineWidth = 3; ctx.stroke();
+            // arc label
+            const midAngle = -Math.PI / 2 + b * Math.PI / 360;
+            ctx.fillStyle = '#0ea0f0'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+            ctx.fillText(`θ=${b.toFixed(1)}°`, sx + Math.cos(midAngle) * (arcR + 18), sy + Math.sin(midAngle) * (arcR + 18));
+
+            // Line from source to receptor
+            drawArrow(ctx, sx, sy, rx, ry, '#f5a623', 2.5);
+
+            // y component (purple - E/W)
+            const bRad = -Math.PI / 2 + b * Math.PI / 180;
+            // Draw projected components
+            const len = Math.sqrt((rx - sx) ** 2 + (ry - sy) ** 2);
+            const ex = sx + (rx - sx), ey = sy; // horizontal projection
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, sy);
+            ctx.strokeStyle = 'rgba(167,139,250,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(rx, sy); ctx.lineTo(rx, ry);
+            ctx.strokeStyle = 'rgba(34,199,135,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]);
+
+            // Labels
+            ctx.fillStyle = 'rgba(167,139,250,0.9)'; ctx.font = '10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+            ctx.fillText('Δlon axis', sx + (rx - sx) / 2, sy - 6);
+            ctx.fillStyle = 'rgba(34,199,135,0.9)'; ctx.textAlign = 'left';
+            ctx.fillText('Δlat axis', rx + 6, (sy + ry) / 2);
+
+            // Source
+            ctx.beginPath(); ctx.arc(sx, sy, 10, 0, Math.PI * 2); ctx.fillStyle = '#22c787'; ctx.fill();
+            ctx.strokeStyle = '#060c16'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#060c16'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('S', sx, sy + 3);
+
+            // Receptor
+            ctx.beginPath(); ctx.arc(rx, ry, 10, 0, Math.PI * 2); ctx.fillStyle = '#f5a623'; ctx.fill();
+            ctx.strokeStyle = '#060c16'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#060c16'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('R', rx, ry + 3);
+
+            // Update displays
+            document.getElementById('kpi-bear').textContent = b.toFixed(2) + '°';
+            document.getElementById('kpi-y').textContent = yy.toFixed(5);
+            document.getElementById('kpi-x').textContent = xx.toFixed(5);
+            document.getElementById('kpi-compass').textContent = compass(b);
+
+            document.getElementById('tr-dl').textContent = `Δλ = ${dl.toFixed(6)} rad  (${((lo2 - lon1)).toFixed(4)}°)`;
+            document.getElementById('tr-y').textContent = `sin(${dl.toFixed(4)})×cos(${(la2 * Math.PI / 180).toFixed(4)}) = ${yy.toFixed(6)}`;
+            document.getElementById('tr-x').textContent = `${xx.toFixed(6)}`;
+            document.getElementById('tr-bear').textContent = `atan2(${yy.toFixed(4)}, ${xx.toFixed(4)}) = ${th.toFixed(5)} rad = ${(th * 180 / Math.PI).toFixed(2)}°\n→ mod 360° = ${b.toFixed(2)}°  (${compass(b)})`;
+
+            drawCompass(b);
+        }
+
+        function drawCompass(bearDeg) {
+            const W = cCanvas.width, H = cCanvas.height;
+            const cx = W / 2, cy = H / 2, r = 100;
+            cCtx.fillStyle = '#060c16'; cCtx.fillRect(0, 0, W, H);
+
+            // Outer ring
+            cCtx.beginPath(); cCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            cCtx.strokeStyle = '#1e293b'; cCtx.lineWidth = 2; cCtx.stroke();
+
+            // Tick marks
+            for (let i = 0; i < 36; i++) {
+                const a = i * 10 * Math.PI / 180 - Math.PI / 2;
+                const inner = i % 9 === 0 ? r - 16 : i % 3 === 0 ? r - 10 : r - 6;
+                cCtx.beginPath(); cCtx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+                cCtx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+                cCtx.strokeStyle = i % 9 === 0 ? '#64748b' : '#1e3a5f'; cCtx.lineWidth = i % 9 === 0 ? 2 : 1; cCtx.stroke();
+            }
+
+            // Cardinal labels
+            const cards = [['N', 0], ['E', 90], ['S', 180], ['W', 270], ['NE', 45], ['SE', 135], ['SW', 225], ['NW', 315]];
+            for (const [lbl, deg] of cards) {
+                const a = (deg - 90) * Math.PI / 180;
+                const dist = lbl.length === 1 ? r - 25 : r - 22;
+                cCtx.fillStyle = lbl === 'N' ? '#fb7185' : '#475569';
+                cCtx.font = `bold ${lbl.length === 1 ? 11 : 9}px Syne,sans-serif`; cCtx.textAlign = 'center'; cCtx.textBaseline = 'middle';
+                cCtx.fillText(lbl, cx + Math.cos(a) * dist, cy + Math.sin(a) * dist);
+            }
+
+            // North line (reference)
+            cCtx.beginPath(); cCtx.moveTo(cx, cy); cCtx.lineTo(cx, cy - r + 5);
+            cCtx.strokeStyle = 'rgba(100,116,139,0.3)'; cCtx.lineWidth = 1.5; cCtx.setLineDash([4, 3]); cCtx.stroke(); cCtx.setLineDash([]);
+
+            // Bearing arc
+            cCtx.beginPath();
+            cCtx.arc(cx, cy, 40, -Math.PI / 2, -Math.PI / 2 + bearDeg * Math.PI / 180, false);
+            cCtx.strokeStyle = '#0ea0f0'; cCtx.lineWidth = 4; cCtx.stroke();
+
+            // Bearing arrow
+            const ba = (bearDeg - 90) * Math.PI / 180;
+            drawArrowC(cCtx, cx, cy, cx + Math.cos(ba) * (r - 8), cy + Math.sin(ba) * (r - 8), '#f5a623', 2.5, 10);
+
+            // Center dot
+            cCtx.beginPath(); cCtx.arc(cx, cy, 5, 0, Math.PI * 2); cCtx.fillStyle = '#22c787'; cCtx.fill();
+
+            // Bearing value
+            cCtx.fillStyle = '#f5a623'; cCtx.font = 'bold 14px JetBrains Mono,monospace'; cCtx.textAlign = 'center'; cCtx.textBaseline = 'middle';
+            cCtx.fillText(bearDeg.toFixed(1) + '°', cx, cy + r + 16);
+            cCtx.fillStyle = '#64748b'; cCtx.font = '10px DM Sans,sans-serif';
+            cCtx.fillText(compass(bearDeg), cx, cy + r + 30);
+        }
+
+        function drawArrowC(ctx, x1, y1, x2, y2, col, lw, hl = 10) {
+            const ang = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - hl * Math.cos(ang - Math.PI / 6), y2 - hl * Math.sin(ang - Math.PI / 6));
+            ctx.lineTo(x2 - hl * Math.cos(ang + Math.PI / 6), y2 - hl * Math.sin(ang + Math.PI / 6));
+            ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+
+        document.getElementById('bLat2').addEventListener('input', drawMain);
+        document.getElementById('bLon2').addEventListener('input', drawMain);
+
+        // Canvas click to move receptor
+        canvas.addEventListener('click', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const cx = canvas.width / 2, cy = canvas.height / 2, scl = 120;
+            // Convert pixel back to lat/lon
+            const newLon = lon1 + ((mx - cx) / (scl * 111 * Math.cos(12.97 * Math.PI / 180)));
+            const newLat = lat1 - ((my - cy) / (scl * 111));
+            const clamLat = Math.max(12.72, Math.min(13.10, newLat));
+            const clamLon = Math.max(77.38, Math.min(77.82, newLon));
+            document.getElementById('bLat2').value = clamLat;
+            document.getElementById('bLon2').value = clamLon;
+            drawMain();
+        });
+
+        function compass(deg) {
+            const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            return dirs[Math.floor(((deg + 11.25) % 360) / 22.5)];
+        }
+
+        drawMain();
+    </script>
+</body>
+
+</html>

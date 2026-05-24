@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Overview — Gaussian Plume</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { display: ['"Syne"', 'sans-serif'], body: ['"DM Sans"', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } }</script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: #080e1a;
+            color: #e2e8f0;
+            font-family: 'DM Sans', sans-serif;
+            overflow: auto;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1424
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e3a5f;
+            border-radius: 3px
+        }
+
+        .card {
+            background: #0d1424;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 20px
+        }
+
+        .card-sm {
+            background: #0d1424;
+            border: 1px solid #1e293b;
+            border-radius: 10px;
+            padding: 14px
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase
+        }
+
+        .eq-box {
+            background: #060c16;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .step-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0
+        }
+
+        canvas {
+            display: block
+        }
+
+        .glow-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(14, 160, 240, 0.4), transparent)
+        }
+
+        .next-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            background: linear-gradient(135deg, #0ea0f0, #0267aa);
+            border-radius: 9px;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: opacity .2s
+        }
+
+        .next-btn:hover {
+            opacity: .9
+        }
+    </style>
+</head>
+
+<body class="p-6">
+
+    <!-- Hero -->
+    <div class="mb-6">
+        <div class="tag mb-3"
+            style="background:rgba(14,160,240,0.1);color:#7fd1ff;border:1px solid rgba(14,160,240,0.2);">Module 1 —
+            Overview</div>
+        <h1 style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#f1f5f9;line-height:1.2;"
+            class="mb-2">Gaussian Plume &amp; Transport Matrix</h1>
+        <p style="color:#94a3b8;font-size:14px;max-width:680px;line-height:1.7;">
+            How does a factory chimney pollute the city? How do we model which station reads what concentration?
+            This course builds the complete <strong style="color:#e2e8f0;">Transport Matrix T</strong> from first
+            principles —
+            from spherical geometry to atmospheric physics.
+        </p>
+    </div>
+
+    <div class="glow-line mb-6"></div>
+
+    <!-- Two-column layout -->
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;">
+
+        <!-- Left: canvas + formula chain -->
+        <div>
+            <!-- Plume canvas -->
+            <div class="card mb-4 p-3">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;">Live
+                            Plume Preview</div>
+                        <div style="font-size:11px;color:#64748b;">Top-down view · adjust wind to see the plume rotate
+                        </div>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        <label style="font-size:11px;color:#64748b;">Wind dir</label>
+                        <input type="range" id="windDir" min="0" max="359" value="60"
+                            style="width:100px;accent-color:#0ea0f0">
+                        <span id="windDirVal"
+                            style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#7fd1ff;min-width:30px;">60°</span>
+                        <label style="font-size:11px;color:#64748b;margin-left:8px;">Stability</label>
+                        <select id="stabSel"
+                            style="background:#060c16;border:1px solid #1e293b;color:#e2e8f0;border-radius:6px;padding:3px 8px;font-size:11px;">
+                            <option>A</option>
+                            <option>B</option>
+                            <option selected>C</option>
+                            <option>D</option>
+                            <option>E</option>
+                            <option>F</option>
+                        </select>
+                    </div>
+                </div>
+                <canvas id="overviewCanvas" width="640" height="300"
+                    style="width:100%;border-radius:8px;background:#060c16;"></canvas>
+                <!-- Legend -->
+                <div class="flex gap-4 mt-2 flex-wrap">
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#00d4aa;display:inline-block"></span>Source
+                        (chimney)</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:10px;height:10px;border-radius:50%;background:#3db8ff;display:inline-block"></span>Wind
+                        vector</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:5px;"><span
+                            style="width:12px;height:4px;border-radius:2px;background:linear-gradient(90deg,#f59e0b,#ef4444,transparent);display:inline-block"></span>Concentration
+                        field</div>
+                </div>
+            </div>
+
+            <!-- Formula pipeline -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:14px;">
+                    The Complete Formula Pipeline</div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+
+                    <!-- Step 1 -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:#060c16;border-radius:8px;border:1px solid #1e293b;">
+                        <div class="step-badge" style="background:rgba(34,199,135,0.15);color:#22c787;">1</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#e2e8f0;">Haversine Distance</div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">d =
+                                2R·arcsin(√a) where a = sin²(Δφ/2) + cos(φ₁)cos(φ₂)sin²(Δλ/2)</div>
+                        </div>
+                        <div style="width:6px;height:6px;border-radius:50%;background:#22c787;flex-shrink:0"></div>
+                    </div>
+                    <div
+                        style="height:10px;width:2px;background:linear-gradient(to bottom,#22c787,#0ea0f0);margin-left:23px;opacity:0.4;">
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:#060c16;border-radius:8px;border:1px solid #1e293b;">
+                        <div class="step-badge" style="background:rgba(245,166,35,0.15);color:#f5a623;">2</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#e2e8f0;">Bearing Angle</div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">θ =
+                                atan2(sin(Δλ)·cos(φ₂), cos(φ₁)·sin(φ₂) − sin(φ₁)·cos(φ₂)·cos(Δλ)) mod 360°</div>
+                        </div>
+                        <div style="width:6px;height:6px;border-radius:50%;background:#f5a623;flex-shrink:0"></div>
+                    </div>
+                    <div
+                        style="height:10px;width:2px;background:linear-gradient(to bottom,#f5a623,#a78bfa);margin-left:23px;opacity:0.4;">
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:#060c16;border-radius:8px;border:1px solid #1e293b;">
+                        <div class="step-badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;">3</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#e2e8f0;">Wind Frame Projection</div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">x =
+                                d·cos(Δθ) [downwind] y = d·sin(Δθ) [crosswind]</div>
+                        </div>
+                        <div style="width:6px;height:6px;border-radius:50%;background:#a78bfa;flex-shrink:0"></div>
+                    </div>
+                    <div
+                        style="height:10px;width:2px;background:linear-gradient(to bottom,#a78bfa,#38bdf8);margin-left:23px;opacity:0.4;">
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:#060c16;border-radius:8px;border:1px solid #1e293b;">
+                        <div class="step-badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;">4</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#e2e8f0;">P-G Dispersion Coefficients
+                            </div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">σ_y =
+                                aᵧ·x^bᵧ σ_z = min(aᵤ·x^bᵤ, 500) [stability class A–F]</div>
+                        </div>
+                        <div style="width:6px;height:6px;border-radius:50%;background:#38bdf8;flex-shrink:0"></div>
+                    </div>
+                    <div
+                        style="height:10px;width:2px;background:linear-gradient(to bottom,#38bdf8,#fb7185);margin-left:23px;opacity:0.4;">
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:#060c16;border-radius:8px;border:1px solid rgba(251,113,133,0.3);">
+                        <div class="step-badge" style="background:rgba(251,113,133,0.15);color:#fb7185;">5</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#e2e8f0;">Transport Coefficient
+                                T<sub>ij</sub></div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">T =
+                                (1/πuσ_yσ_z) · exp(−y²/2σ_y²) · exp(−H²/2σ_z²) · 10⁶</div>
+                        </div>
+                        <div style="width:6px;height:6px;border-radius:50%;background:#fb7185;flex-shrink:0"></div>
+                    </div>
+                    <div
+                        style="height:10px;width:2px;background:linear-gradient(to bottom,#fb7185,#f59e0b);margin-left:23px;opacity:0.4;">
+                    </div>
+
+                    <!-- Final -->
+                    <div
+                        style="display:flex;align-items:center;gap:12px;padding:10px;background:rgba(245,158,11,0.05);border-radius:8px;border:1px solid rgba(245,158,11,0.25);">
+                        <div class="step-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;">⊞</div>
+                        <div style="flex:1;">
+                            <div style="font-size:11.5px;font-weight:600;color:#f59e0b;">Full Transport Matrix: C = T ·
+                                Q</div>
+                            <div style="font-size:10px;color:#64748b;font-family:'JetBrains Mono',monospace;">Repeat for
+                                all (i,j) station pairs → 14×14 matrix → invert for emission estimation</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: concept cards -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+            <!-- What is this -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:10px;">
+                    What is a Gaussian Plume?</div>
+                <p style="font-size:12.5px;color:#94a3b8;line-height:1.7;margin-bottom:10px;">
+                    When a chimney releases pollutants, the <strong style="color:#e2e8f0;">wind carries them
+                        downwind</strong>
+                    while atmospheric turbulence spreads them outward. The resulting concentration profile follows a
+                    <strong style="color:#0ea0f0;">Gaussian (bell-curve)</strong> shape in both crosswind and vertical
+                    directions.
+                </p>
+                <div class="eq-box" style="font-size:11px;">
+                    $$C(x,y,z=0) = \frac{Q}{\pi u \sigma_y \sigma_z}
+                    \exp\!\left(-\frac{y^2}{2\sigma_y^2}\right)\exp\!\left(-\frac{H^2}{2\sigma_z^2}\right)$$
+                </div>
+            </div>
+
+            <!-- The transport matrix -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:10px;">
+                    The Transport Matrix Idea</div>
+                <p style="font-size:12.5px;color:#94a3b8;line-height:1.7;margin-bottom:10px;">
+                    With N monitoring stations, <strong style="color:#e2e8f0;">each acting as both source and
+                        receptor</strong>,
+                    we build an N×N matrix T where entry T<sub>ij</sub> answers:
+                </p>
+                <div
+                    style="background:rgba(14,160,240,0.05);border:1px solid rgba(14,160,240,0.2);border-radius:8px;padding:12px;font-size:12px;color:#7fd1ff;font-style:italic;margin-bottom:10px;">
+                    "If source j emits 1 g/s, what concentration (µg/m³) reaches receptor i?"
+                </div>
+                <div class="eq-box" style="font-size:11px;">$$\mathbf{C} = \mathbf{T} \cdot \mathbf{Q}$$
+                    <span style="color:#475569;">C ∈ ℝᴺ measured concentrations
+                        T ∈ ℝᴺˣᴺ transport matrix
+                        Q ∈ ℝᴺ unknown emission rates</span>
+                </div>
+            </div>
+
+            <!-- Why it matters -->
+            <div class="card">
+                <div
+                    style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:10px;">
+                    Why This Matters</div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;gap:10px;align-items:flex-start;">
+                        <div
+                            style="width:20px;height:20px;background:rgba(34,199,135,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+                            <div style="width:6px;height:6px;background:#22c787;border-radius:50%;"></div>
+                        </div>
+                        <div style="font-size:12px;color:#94a3b8;line-height:1.6;"><strong style="color:#e2e8f0;">Air
+                                quality inversion</strong> — given measured C and known T, solve for Q (who is
+                            polluting?)</div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:flex-start;">
+                        <div
+                            style="width:20px;height:20px;background:rgba(14,160,240,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+                            <div style="width:6px;height:6px;background:#0ea0f0;border-radius:50%;"></div>
+                        </div>
+                        <div style="font-size:12px;color:#94a3b8;line-height:1.6;"><strong
+                                style="color:#e2e8f0;">Forecasting</strong> — given emission Q and weather T, predict
+                            concentrations C at any sensor</div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:flex-start;">
+                        <div
+                            style="width:20px;height:20px;background:rgba(245,166,35,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+                            <div style="width:6px;height:6px;background:#f5a623;border-radius:50%;"></div>
+                        </div>
+                        <div style="font-size:12px;color:#94a3b8;line-height:1.6;"><strong
+                                style="color:#e2e8f0;">Regulatory compliance</strong> — identify which sources violate
+                            air quality standards</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation hint -->
+            <div
+                style="background:rgba(14,160,240,0.05);border:1px solid rgba(14,160,240,0.15);border-radius:10px;padding:14px;">
+                <div style="font-size:11px;color:#7fd1ff;font-weight:600;margin-bottom:6px;">Navigate the course</div>
+                <div style="font-size:11px;color:#64748b;line-height:1.7;">Use the sidebar to explore each concept in
+                    detail with interactive visualizations and live math.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const PG = { A: { ay: 0.36, by: 0.90, az: 0.00023, bz: 2.10 }, B: { ay: 0.25, by: 0.90, az: 0.058, bz: 1.09 }, C: { ay: 0.19, by: 0.90, az: 0.11, bz: 0.91 }, D: { ay: 0.13, by: 0.90, az: 0.57, bz: 0.58 }, E: { ay: 0.096, by: 0.90, az: 0.85, bz: 0.47 }, F: { ay: 0.063, by: 0.90, az: 0.77, bz: 0.42 } };
+
+        const canvas = document.getElementById('overviewCanvas');
+        const ctx = canvas.getContext('2d');
+        const wd = document.getElementById('windDir');
+        const wdv = document.getElementById('windDirVal');
+        const ss = document.getElementById('stabSel');
+
+        function draw() {
+            const W = canvas.width, H = canvas.height;
+            const windDeg = parseFloat(wd.value);
+            const cls = ss.value;
+            const u = 3, stackH = 30;
+            ctx.fillStyle = '#060c16'; ctx.fillRect(0, 0, W, H);
+            // Grid
+            ctx.strokeStyle = 'rgba(30,58,95,0.4)'; ctx.lineWidth = 1;
+            for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+            for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+            const sx = W / 2, sy = H / 2;
+            const toRad = ((windDeg + 180) % 360) * Math.PI / 180;
+            const cosW = Math.cos(toRad), sinW = Math.sin(toRad);
+            const M = 4; // metres per pixel
+
+            const img = ctx.getImageData(0, 0, W, H);
+            const d = img.data;
+            const c = PG[cls];
+            for (let py = 0; py < H; py += 2) {
+                for (let px = 0; px < W; px += 2) {
+                    const dx = (px - sx) * M, dy = (py - sy) * M;
+                    const xd = dx * cosW + dy * sinW;
+                    const yc = -dx * sinW + dy * cosW;
+                    if (xd < 500) continue;
+                    const sy2 = c.ay * Math.pow(xd, c.by);
+                    const sz = Math.min(c.az * Math.pow(xd, c.bz), 500);
+                    if (sy2 < 1e-6 || sz < 1e-6) continue;
+                    const lat = Math.exp(-(yc * yc) / (2 * sy2 * sy2));
+                    const vert = Math.exp(-(stackH * stackH) / (2 * sz * sz));
+                    const conc = (1 / (Math.PI * u * sy2 * sz)) * lat * vert * 1e6 * 50;
+                    if (conc < 0.01) continue;
+                    const t = Math.min(Math.log10(conc + 1) / 2.5, 1);
+                    const r = Math.round(20 + 235 * t * t);
+                    const g2 = Math.round(60 + 120 * (1 - t) * t * 4);
+                    const b = Math.round(200 - 160 * t);
+                    const a = Math.round(30 + 200 * t);
+                    for (let j = 0; j < 2; j++)for (let i = 0; i < 2; i++) {
+                        const idx = ((py + j) * W + (px + i)) * 4;
+                        if (idx < d.length - 3) { d[idx] = r; d[idx + 1] = g2; d[idx + 2] = b; d[idx + 3] = a; }
+                    }
+                }
+            }
+            ctx.putImageData(img, 0, 0);
+
+            // Downwind axis
+            const axLen = 200;
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = 'rgba(56,189,248,0.5)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + cosW * axLen, sy + sinW * axLen); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Wind arrow
+            const wLen = 70;
+            const wRad = (windDeg - 90) * Math.PI / 180;
+            arrowHead(ctx, sx - Math.cos(wRad) * wLen, sy - Math.sin(wRad) * wLen, sx, sy, '#3db8ff', 2.5);
+            ctx.fillStyle = '#3db8ff'; ctx.font = 'bold 11px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+            ctx.fillText(`Wind ${windDeg}°`, sx - Math.cos(wRad) * wLen, sy - Math.sin(wRad) * wLen - 12);
+
+            // Source
+            ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.fillStyle = '#00d4aa'; ctx.fill();
+            ctx.strokeStyle = '#080e1a'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#080e1a'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('S', sx, sy + 3);
+
+            // North
+            arrowHead(ctx, W - 40, 65, W - 40, 38, '#64748b', 1.5, 8);
+            ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px Syne,sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', W - 40, 80);
+        }
+
+        function arrowHead(ctx, x1, y1, x2, y2, col, lw, hl = 10) {
+            const ang = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw; ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - hl * Math.cos(ang - Math.PI / 6), y2 - hl * Math.sin(ang - Math.PI / 6));
+            ctx.lineTo(x2 - hl * Math.cos(ang + Math.PI / 6), y2 - hl * Math.sin(ang + Math.PI / 6));
+            ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+
+        wd.addEventListener('input', () => { wdv.textContent = wd.value + '°'; draw(); });
+        ss.addEventListener('change', draw);
+        draw();
+    </script>
+</body>
+
+</html>
