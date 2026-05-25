@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from app.endpoints import dashboard
-from app.endpoints import health
 from app.config import get_settings
 
 
@@ -17,10 +16,6 @@ app = FastAPI(
         "station readings, transport matrix generation, and source inversion APIs."
     ),
     openapi_tags=[
-        {
-            "name": "health",
-            "description": "Operational readiness endpoints.",
-        },
         {
             "name": "dashboard",
             "description": "Data endpoints for the dashboard UI.",
@@ -37,7 +32,6 @@ app.add_middleware(
 )
 
 router = APIRouter()
-router.include_router(health.router, tags=["health"])
 router.include_router(dashboard.router, tags=["dashboard"])
 app.include_router(router, prefix=settings.api_prefix)
 

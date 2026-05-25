@@ -10,6 +10,7 @@ from app.schemas import (
     TransportMatrixResponse,
 )
 from app.services.inversion import InversionService
+from app.services.read import ReadingService, get_reading_service
 
 router = APIRouter()
 
@@ -33,10 +34,10 @@ def get_current_reading(
         default=None,
         description="Optional ISO timestamp. If omitted, the latest usable snapshot is used.",
     ),
-    service: InversionService = Depends(get_service),
+    service: ReadingService = Depends(get_reading_service),
 ) -> CurrentReadingResponse:
     try:
-        return CurrentReadingResponse(**service.current_reading(timestamp))
+        return service.current_reading(timestamp)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

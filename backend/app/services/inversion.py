@@ -6,7 +6,7 @@ from scipy.optimize import nnls
 
 from app.config import Settings, get_settings
 from app.schemas import SolverMethod
-from app.services.data_repository import DataRepository
+from app.services.repository import DataRepository
 from app.utils.math import bearing_deg, haversine_km
 
 
@@ -30,37 +30,6 @@ class InversionService:
     ) -> None:
         self.settings = settings or get_settings()
         self.repository = repository or DataRepository(self.settings)
-
-    def current_reading(self, timestamp: str | None = None) -> dict:
-        snapshot = self.repository.snapshot_for_time(timestamp)
-        pollutant, wind_speed, wind_direction, solar_radiation = (
-            self.repository.aligned_vectors(snapshot)
-        )
-        pollutant = self.repository.impute_median(pollutant)
-        wind_speed = self.repository.impute_median(wind_speed)
-        wind_direction = self.repository.impute_median(wind_direction)
-        solar_radiation = self.repository.impute_median(solar_radiation)
-
-        station_rows = []
-        for idx, station in enumerate(self.repository.station_names):
-            station_rows.append(
-                {
-                    "station_name": station,
-                    "pollutant": float(pollutant[idx]),
-                    "wind_speed": float(wind_speed[idx]),
-                    "wind_direction": float(wind_direction[idx]),
-                    "solar_radiation": float(solar_radiation[idx]),
-                    "timestamp": str(snapshot.timestamp),
-                }
-            )
-
-        return {
-            "timestamp": str(snapshot.timestamp),
-            "pollutant": self.settings.pollutant,
-            "station_count": len(self.repository.station_names),
-            "complete_station_count": int(len(snapshot.current)),
-            "readings": station_rows,
-        }
 
     def stability_class(
         self,
@@ -129,7 +98,7 @@ class InversionService:
         return float(transport * 1e6)
 
     def transport_matrix(self, timestamp: str | None = None) -> dict:
-        snapshot = self.repository.snapshot_for_time(timestamp)
+        snapshot = self.repository.get_timestamp_snapshot(timestamp)
         pollutant, wind_speed, wind_direction, solar_radiation = (
             self.repository.aligned_vectors(snapshot)
         )
