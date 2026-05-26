@@ -7,15 +7,19 @@ All functions operate on the module-level DataFrames - no classes, no DI.
 """
 
 from __future__ import annotations
+from datetime import time as dt_time
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from loguru import logger
 
-_BASE = Path(__file__).resolve().parents[1]
-STATIONS_FILE = _BASE / "data" / "raw" / "stations.csv"
-MASTER_FILE = _BASE / "data" / "artifacts" / "final_master_dataset.csv"
-MIN_COMPLETE_STATIONS = 10  # minimum stations required for a snapshot to be "usable"
+# CONFIGURATION & CONSTANTS
+BASE = Path(__file__).resolve().parents[1]
+STATIONS_FILE = BASE / "data" / "raw" / "stations.csv"
+MASTER_FILE = BASE / "data" / "artifacts" / "final_master_dataset.csv"
+
+MIN_COMPLETE_STATIONS = 10
+DEFAULT_REQUIRED_COLS = ["wind_speed", "wind_direction", "solar_radiation"]
 
 POLLUTANT_COLS = [
     "pm25",
@@ -42,167 +46,153 @@ METEO_COLS = [
     "pressure",
 ]
 
-# Load once at import time
-stations_df: pd.DataFrame = pd.read_csv(STATIONS_FILE)
-stations_df["latitude"] = pd.to_numeric(stations_df["latitude"], errors="coerce")
-stations_df["longitude"] = pd.to_numeric(stations_df["longitude"], errors="coerce")
 
+# PRIVATE DATA ETL HELPERS
+def _load_stations_pipeline(path: Path) -> pd.DataFrame:
+    """Load, parse, and clean the stations database."""
+    df = pd.read_csv(path)
+    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
+    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
+    return df
+
+
+def _load_master_pipeline(path: Path, valid_stations: list[str]) -> pd.DataFrame:
+    """Load, parse, and filter the master dataset against valid stations."""
+    df = pd.read_csv(path, parse_dates=["time"])
+    df["time"] = pd.to_datetime(df["time"], errors="coerce")
+    return df[df["station_name"].isin(valid_stations)].copy()
+
+
+def _is_date_only(timestamp: pd.Timestamp | str) -> bool:
+    """Determine if the provided timestamp input is intended as a date-only filter."""
+    if isinstance(timestamp, str):
+        return len(timestamp.strip()) <= 10
+    return timestamp.time() == dt_time(0, 0, 0)
+
+
+def _pick_latest_usable_time(
+    df: pd.DataFrame, required_cols: list[str]
+) -> pd.Timestamp:
+    """Find the most recent timestamp meeting the station coverage threshold."""
+    usable = df.dropna(subset=required_cols)
+    coverage = usable.groupby("time")["station_name"].nunique()
+    valid_times = coverage[coverage >= MIN_COMPLETE_STATIONS]
+    if valid_times.empty:
+        logger.warning(
+            "No snapshot meets completeness threshold; falling back to absolute max."
+        )
+        return pd.Timestamp(df["time"].max())
+    return pd.Timestamp(valid_times.index.max())
+
+
+# INITIALIZATION (Runs once at import time)
+stations_df = _load_stations_pipeline(STATIONS_FILE)
 STATION_NAMES: list[str] = stations_df["station_name"].dropna().astype(str).tolist()
-_station_order: dict[str, int] = {n: i for i, n in enumerate(STATION_NAMES)}
-_station_meta: pd.DataFrame = stations_df.set_index("station_name")
-
-master_df: pd.DataFrame = pd.read_csv(MASTER_FILE, parse_dates=["time"])
-master_df["time"] = pd.to_datetime(master_df["time"], errors="coerce")
-master_df = master_df[master_df["station_name"].isin(STATION_NAMES)].copy()
-
+station_order: dict[str, int] = {name: idx for idx, name in enumerate(STATION_NAMES)}
+master_df = _load_master_pipeline(MASTER_FILE, STATION_NAMES)
 logger.info(
-    f"Data loaded | stations={len(STATION_NAMES)} | master_rows={len(master_df)}"
+    f"Data layer initialized | stations={len(STATION_NAMES)} | master_rows={len(master_df)}"
 )
 
 
+# PUBLIC API FUNCTIONS
 def station_coordinates() -> tuple[np.ndarray, np.ndarray]:
-    """Return (lats, lons) in canonical station order."""
-    meta = _station_meta.reindex(STATION_NAMES)
-    lats = pd.to_numeric(meta["latitude"], errors="coerce").to_numpy(dtype=float)
-    lons = pd.to_numeric(meta["longitude"], errors="coerce").to_numpy(dtype=float)
+    """Return (lats, lons) numpy arrays perfectly aligned to canonical station order."""
+    lats = pd.to_numeric(stations_df["latitude"], errors="coerce").to_numpy(dtype=float)
+    lons = pd.to_numeric(stations_df["longitude"], errors="coerce").to_numpy(
+        dtype=float
+    )
     return lats, lons
 
 
 def validate_pollutant(pollutant: str) -> None:
-    """Raise ValueError if pollutant is not in the allowed list."""
+    """Raise ValueError if the pollutant is unmapped."""
     if pollutant not in POLLUTANT_COLS:
         raise ValueError(f"Unknown pollutant '{pollutant}'. Allowed: {POLLUTANT_COLS}")
 
 
-def _pick_latest_usable_time(
-    df: pd.DataFrame,
-    required_cols: list[str],
-) -> pd.Timestamp:
-    """
-    From df, pick the most recent timestamp where at least
-    MIN_COMPLETE_STATIONS stations have non-null values for required_cols.
-    Falls back to the global max timestamp if nothing qualifies.
-    """
-    usable = df.dropna(subset=required_cols)
-    coverage = usable.groupby("time")["station_name"].nunique()
-    valid = coverage[coverage >= MIN_COMPLETE_STATIONS]
-    if valid.empty:
-        logger.warning("No snapshot meets the completeness threshold - using latest.")
-        return pd.Timestamp(df["time"].max())
-    return pd.Timestamp(valid.index.max())
-
-
 def get_snapshot(
-    timestamp: pd.Timestamp | None = None,
+    timestamp: pd.Timestamp | str | None = None,
     columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """
     Return one snapshot (all rows for a single timestamp).
-
-    Parameters
-    ----------
-    timestamp:
-        - None          → latest usable snapshot across the whole dataset.
-        - date-only     → latest usable snapshot on that calendar day.
-        - full datetime → exact match.
-    columns:
-        Extra columns (beyond meteo) required to be non-null when choosing
-        a usable snapshot.  Pass [pollutant] for inversion endpoints.
-        If None, only meteorology completeness is checked.
+    Routes logic based on timestamp specificity (None -> global latest, Date -> daily latest, Datetime -> exact).
     """
-    # 1. Get required columns for usability check
-    required = ["wind_speed", "wind_direction", "solar_radiation"]
-    if columns:
-        for col in columns:
-            if col not in required:
-                required.append(col)
-
-    scoped = master_df.copy()
-
-    # 2. Parse timestamp if provided, and filter scoped df accordingly
-    if timestamp is not None:
-        ts = pd.Timestamp(timestamp)
-        is_date_only = (
-            ts.time() == pd.Timestamp("00:00:00").time()
-            and len(str(timestamp).strip()) <= 10
+    # 1. Resolve column rules cleanly using a unique list merge
+    required = list(set(DEFAULT_REQUIRED_COLS + (columns or [])))
+    # Case A: No timestamp provided -> get latest valid snapshot across whole dataset
+    if timestamp is None:
+        selected_time = _pick_latest_usable_time(master_df, required)
+        snapshot = master_df[master_df["time"] == selected_time]
+        if snapshot.empty:
+            raise ValueError("No usable snapshot found in entire dataset.")
+        logger.info(
+            f"Snapshot (latest global) | ts={selected_time} | rows={len(snapshot)}"
         )
+        return snapshot.copy()
+    ts = pd.Timestamp(timestamp)
 
-        if is_date_only:
-            day_df = scoped[
-                (scoped["time"] >= ts.normalize())
-                & (scoped["time"] < ts.normalize() + pd.Timedelta(days=1))
-            ]
-            if day_df.empty:
-                raise ValueError(f"No data for date: {ts.date()}")
-            selected = _pick_latest_usable_time(day_df, required)
-            snap = day_df[day_df["time"] == selected]
-        else:
-            snap = scoped[scoped["time"] == ts]
-            if snap.empty:
-                raise ValueError(f"No data for timestamp: {ts}")
+    # Case B: Date-only provided -> get latest valid snapshot within that calendar day
+    if _is_date_only(timestamp):
+        day_start = ts.normalize()
+        day_end = day_start + pd.Timedelta(days=1)
+        day_df = master_df[
+            (master_df["time"] >= day_start) & (master_df["time"] < day_end)
+        ]
+        if day_df.empty:
+            raise ValueError(f"No data found for date: {ts.date()}")
+        selected_time = _pick_latest_usable_time(day_df, required)
+        snapshot = day_df[day_df["time"] == selected_time]
+        logger.info(
+            f"Snapshot (latest for day) | ts={selected_time} | rows={len(snapshot)}"
+        )
+        return snapshot.copy()
 
-        logger.info(f"Snapshot | ts={snap['time'].iloc[0]} | rows={len(snap)}")
-        return snap.copy()
+    # Case C: Exact datetime provided -> fetch exact match
+    snapshot = master_df[master_df["time"] == ts]
+    if snapshot.empty:
+        raise ValueError(f"No data matches exact timestamp: {ts}")
 
-    # 3. No timestamp provided - pick the latest usable snapshot across the whole dataset
-    selected = _pick_latest_usable_time(scoped, required)
-    snap = scoped[scoped["time"] == selected]
-    if snap.empty:
-        raise ValueError("No usable snapshot found.")
-    logger.info(f"Snapshot (latest) | ts={selected} | rows={len(snap)}")
-    return snap.copy()
+    logger.info(f"Snapshot (exact match) | ts={ts} | rows={len(snapshot)}")
+    return snapshot.copy()
 
 
-def get_window(
-    start: pd.Timestamp,
-    end: pd.Timestamp,
-) -> pd.DataFrame:
-    """
-    Return all rows between start (inclusive) and end.
-    If end has no time component (date-only), +1 day is applied so the
-    whole day is included.
-    """
-    # 1. Make end inclusive for date-only inputs
-    if end.time() == pd.Timestamp("00:00:00").time():
-        end = end + pd.Timedelta(days=1)
+def get_window(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """Return all data rows falling inside the inclusive/exclusive window bounds."""
+    # Convert date-only end bounds to be inclusive of that entire day
+    adjusted_end = end + pd.Timedelta(days=1) if end.time() == dt_time(0, 0, 0) else end
     windowed = master_df[
-        (master_df["time"] >= start) & (master_df["time"] < end)
+        (master_df["time"] >= start) & (master_df["time"] < adjusted_end)
     ].copy()
-    logger.info(
-        f"Window | {start} → {end} | rows={len(windowed)} | timestamps={windowed['time'].nunique()}"
-    )
+    logger.info(f"Window extracted | {start} -> {adjusted_end} | rows={len(windowed)}")
     return windowed
 
 
-def align_to_stations(
-    df: pd.DataFrame,
-    cols: list[str],
-) -> dict[str, np.ndarray]:
-    """
-    Reindex df by canonical station order and return numeric arrays per column.
-    Missing stations get NaN.
-    """
+def align_to_stations(df: pd.DataFrame, cols: list[str]) -> dict[str, np.ndarray]:
+    """Reindex df by canonical station order, outputting dictionary of clean numpy float arrays."""
+    # 1.1 Sets the Index: It temporarily turns the "station_name" column into the row labels (index).
+    # 1.2 Reindexes: It forces the rows to match a predefined, global list called STATION_NAMES.
     indexed = df.set_index("station_name").reindex(STATION_NAMES)
-    result: dict[str, np.ndarray] = {}
-    for col in cols:
-        if col in indexed.columns:
-            result[col] = pd.to_numeric(indexed[col], errors="coerce").to_numpy(float)
-        else:
-            result[col] = np.full(len(STATION_NAMES), np.nan)
-    return result
+    return {
+        col: pd.to_numeric(indexed[col], errors="coerce").to_numpy(dtype=float)
+        if col in indexed.columns
+        else np.full(len(STATION_NAMES), np.nan)
+        for col in cols
+    }
 
 
 def impute_median(arr: np.ndarray) -> np.ndarray:
-    """Replace NaN with column median; return zeros if everything is NaN."""
+    """Replace NaN values with array median; falls back to zeros if fully empty."""
     if np.all(np.isnan(arr)):
         return np.zeros_like(arr)
-    out = arr.copy()
-    out[np.isnan(out)] = float(np.nanmedian(out))
-    return out
+    output = arr.copy()
+    output[np.isnan(output)] = float(np.nanmedian(output))
+    return output
 
 
 def sort_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Sort by time, then by canonical station order."""
+    """Sort Dataframe strictly by time sequence, then by canonical station sequence."""
     df = df.copy()
-    df["_order"] = df["station_name"].map(_station_order)
+    df["_order"] = df["station_name"].map(station_order)
     return df.sort_values(["time", "_order"]).drop(columns="_order")

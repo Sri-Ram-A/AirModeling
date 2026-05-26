@@ -42,32 +42,45 @@ class StationRow(BaseModel):
     pressure: float | None = None
 
 
-# Inversion schemas
 class SolverResult(BaseModel):
-    """Emission estimates from one inversion method."""
+    """
+    1. Output from one classical solver.
+    2. Contribution matrix is included so the caller sees source→receptor impacts.
+    """
 
     method: str = Field(description="Solver name.")
     residual_norm: float = Field(description="||C - T·Q||₂")
-    Q: list[float] = Field(description="Emission vector [g/s].")
+    Q: list[float] = Field(description="Estimated emissions [g/s].")
     reconstructed_C: list[float] = Field(
-        description="T·Q reconstructed concentrations."
+        description="Row-sum of the contribution matrix for each receptor station."
     )
-    residuals: list[float] = Field(description="C - T·Q per station.")
-    negative_q_count: int = Field(description="Stations with Q < 0.")
+    residuals: list[float] = Field(description="C_obs - C_hat per station.")
+    contribution_matrix: list[list[float]] = Field(
+        description="Contribution matrix where entry [i][j] = T[i][j] * Q[j]."
+    )
+    negative_q_count: int = Field(description="Count of negative emission estimates.")
     metadata: dict[str, Any] | None = None
 
 
 class MatrixDiagnostics(BaseModel):
-    """SVD diagnostics for the transport matrix."""
+    """
+    1. Shared diagnostics for the transport matrix.
+    """
 
     shape: list[int] = Field(description="[rows, cols]")
-    rank: int
-    condition_number: float | None = None
-    singular_values: list[float]
+    rank: int = Field(description="Numerical rank of T.")
+    condition_number: float | None = Field(
+        default=None, description="Condition number κ(T)."
+    )
+    singular_values: list[float] = Field(description="Singular value spectrum.")
 
 
 class InversionResponse(BaseModel):
-    """Full inversion result for one snapshot."""
+    """
+    1. Final API response.
+    2. Note: this does NOT return the transport matrix directly.
+    3. Instead, each solver result includes a contribution matrix.
+    """
 
     timestamp: str
     pollutant: str
@@ -76,14 +89,3 @@ class InversionResponse(BaseModel):
     observed_concentrations: list[float]
     solutions: list[SolverResult]
     diagnostics: MatrixDiagnostics
-
-
-class TransportMatrixResponse(BaseModel):
-    """Raw transport matrix for one snapshot."""
-
-    timestamp: str
-    pollutant: str
-    station_names: list[str]
-    stability_classes: list[str]
-    transport_matrix: list[list[float]]
-    observed_concentrations: list[float]
