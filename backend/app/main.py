@@ -1,10 +1,12 @@
+# app/main.py
+
+
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from app.endpoints import dashboard
+from app.endpoints import dashboard, inversion
 from app.config import get_settings
-
 
 settings = get_settings()
 
@@ -33,11 +35,12 @@ app.add_middleware(
 
 router = APIRouter()
 router.include_router(dashboard.router, tags=["dashboard"])
+router.include_router(inversion.router, tags=["inversion"])
 app.include_router(router, prefix=settings.api_prefix)
 
 
 @app.get("/", response_class=HTMLResponse)
-def root():
+def root() :
     return """
     <!DOCTYPE html>
     <html>

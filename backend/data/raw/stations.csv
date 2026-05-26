@@ -1,4 +1,4 @@
-SlNo,StationName,Organization,Latitude,Longitude,SiteID
+slNo,station_name,organization,latitude,longitude,site_id
 1,BTMLayout,CPCB,12.9135218,77.5950804,162
 2,BWSSBKadabesanahalli,CPCB,12.9352049,77.6814488,164
 3,BapujiNagar,KSPCB,12.951913,77.539784,1553

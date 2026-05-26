@@ -8,7 +8,7 @@ plotly
 scipy
 geopy
 loguru
-
+structlog
 fastapi
 uvicorn[standard]
 numpy
