@@ -69,7 +69,9 @@ def _parse_hour(timestamp: str) -> int:
 
 
 # 4. Meteorology helpers
-def _stability_class(wind_speed_ms: float, solar_rad_wm2: float, is_daytime: bool) -> str:
+def _stability_class(
+    wind_speed_ms: float, solar_rad_wm2: float, is_daytime: bool
+) -> str:
     """
     1. Approximate Pasquill stability class from wind speed and solar radiation.
     2. This is a simplified Turner-style lookup.
@@ -203,16 +205,6 @@ def build_transport_matrix(
     return T, stability_classes
 
 
-# 7. Solver helpers
-def _contribution_matrix(T: np.ndarray, Q: np.ndarray) -> np.ndarray:
-    """
-    1. Build the source contribution matrix.
-    2. Entry [i][j] = T[i][j] * Q[j].
-    3. Row sums reproduce the modeled concentration at receptor i.
-    """
-    return T * Q[np.newaxis, :]
-
-
 def _solver_result(
     method: str,
     T: np.ndarray,
@@ -225,7 +217,7 @@ def _solver_result(
     """
     C_hat = T @ Q
     residuals = C_obs - C_hat
-    contribution = _contribution_matrix(T, Q)
+    contribution = T * Q[np.newaxis, :]
 
     return SolverResult(
         method=method,

@@ -26,7 +26,7 @@ import {
   Sigma,
   Waves,
   ChevronRight,
-  Sparkles,
+  Calculator,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -325,13 +325,12 @@ export default function InversionPage() {
         <aside className="flex w-72 shrink-0 flex-col border-r bg-card px-4 py-5">
           <div className="rounded-2xl border bg-background p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <Sparkles className="h-5 w-5" />
+
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <Gauge className="h-5 w-5 text-primary" />
+                <span className="font-semibold tracking-tight text-sm">AirWatch</span>
               </div>
-              <div>
-                <p className="text-sm font-semibold tracking-tight">Inversion Lab</p>
-                <p className="text-xs text-muted-foreground">Source attribution dashboard</p>
-              </div>
+
             </div>
             <div className="mt-4 rounded-xl border bg-card px-3 py-2">
               <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Workspace</p>
@@ -416,7 +415,7 @@ export default function InversionPage() {
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Run inversion
             </Button>
-            <Button variant="ghost" className="h-10 rounded-xl" onClick={() => setTheme(theme === "dark" ? "light" : "dark") }>
+            <Button variant="ghost" className="h-10 rounded-xl" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? (
                 <>
                   <SunMedium className="mr-2 h-4 w-4" /> Light mode
@@ -487,7 +486,7 @@ export default function InversionPage() {
                 title="Negative Q"
                 value={solverData ? String(solverData.negative_q_count) : "—"}
                 subtitle="Emission estimates below zero"
-                icon={<Sparkles className="h-5 w-5" />}
+                icon={<Calculator className="h-5 w-5" />}
               />
             </div>
 

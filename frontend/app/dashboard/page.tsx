@@ -17,7 +17,7 @@ import {
   RefreshCw, CalendarDays, ChevronDown,
   AlertCircle, Moon, SunMedium, Gauge,
 } from "lucide-react";
-
+import { Map, MapTileLayer, MapPopup, MapMarker, MapZoomControl } from "@/components/ui/map"
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
@@ -59,29 +59,6 @@ const POLLUTANT_UNIT: Record<PollutantKey, string> = {
   o3: "µg/m³", benzene: "µg/m³", toluene: "µg/m³",
 };
 
-// ─── Map (dynamic import — Leaflet requires browser) ─────────────────────────
-
-const Map = dynamic(
-  () => import("@/components/ui/map").then((m) => m.Map),
-  { ssr: false, loading: () => <Skeleton className="h-full w-full" /> }
-);
-const MapTileLayer = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MapTileLayer),
-  { ssr: false }
-);
-const MapMarker = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MapMarker),
-  { ssr: false }
-);
-const MapPopup = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MapPopup),
-  { ssr: false }
-);
-const MapZoomControl = dynamic(
-  () => import("@/components/ui/map").then((m) => m.MapZoomControl),
-  { ssr: false }
-);
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(val: number | null | undefined): string {
@@ -94,9 +71,9 @@ function getPollutantColor(val: number | null, key: PollutantKey): string {
   // Very rough AQI-like colouring for PM2.5; others get neutral
   if (val === null || isNaN(val)) return "text-muted-foreground";
   if (key === "pm25") {
-    if (val < 12)  return "text-emerald-600 dark:text-emerald-400";
-    if (val < 35)  return "text-yellow-600 dark:text-yellow-400";
-    if (val < 55)  return "text-orange-600 dark:text-orange-400";
+    if (val < 12) return "text-emerald-600 dark:text-emerald-400";
+    if (val < 35) return "text-yellow-600 dark:text-yellow-400";
+    if (val < 55) return "text-orange-600 dark:text-orange-400";
     return "text-red-600 dark:text-red-400";
   }
   return "text-foreground";
@@ -106,12 +83,12 @@ function getPollutantColor(val: number | null, key: PollutantKey): string {
 
 export default function DashboardPage() {
   // 1. State: data + loading/error
-  const [rows, setRows]           = useState<StationRow[]>([]);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const [rows, setRows] = useState<StationRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // 2. State: filters
-  const [selectedDate, setSelectedDate]       = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedPollutant, setSelectedPollutant] = useState<PollutantKey>("pm25");
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
 
@@ -125,7 +102,7 @@ export default function DashboardPage() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (date)      params.set("timestamp", format(date, "yyyy-MM-dd"));
+      if (date) params.set("timestamp", format(date, "yyyy-MM-dd"));
       if (pollutant) params.set("pollutant", pollutant);
 
       const data = await REQUEST<StationRow[]>(
@@ -144,7 +121,7 @@ export default function DashboardPage() {
 
   useEffect(function onMount() {
     fetchData(undefined, selectedPollutant);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Handler: date pick from calendar ─────────────────────────────────────
@@ -263,24 +240,24 @@ export default function DashboardPage() {
           </span>
           {loading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-full rounded-sm" />
-              ))
+              <Skeleton key={i} className="h-6 w-full rounded-sm" />
+            ))
             : rows.map((r) => (
-                <button
-                  key={r.station_name}
-                  onClick={() => setSelectedStation(
-                    selectedStation === r.station_name ? null : r.station_name
-                  )}
-                  className={[
-                    "text-left px-2 py-1 text-xs rounded-sm transition-colors",
-                    selectedStation === r.station_name
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent text-foreground",
-                  ].join(" ")}
-                >
-                  {r.station_name}
-                </button>
-              ))}
+              <button
+                key={r.station_name}
+                onClick={() => setSelectedStation(
+                  selectedStation === r.station_name ? null : r.station_name
+                )}
+                className={[
+                  "text-left px-2 py-1 text-xs rounded-sm transition-colors",
+                  selectedStation === r.station_name
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent text-foreground",
+                ].join(" ")}
+              >
+                {r.station_name}
+              </button>
+            ))}
         </div>
 
         <Separator />
@@ -422,39 +399,39 @@ export default function DashboardPage() {
                 <TableBody>
                   {loading
                     ? Array.from({ length: 8 }).map((_, i) => (
-                        <TableRow key={i}>
-                          {[0,1,2,3].map((j) => (
-                            <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                          ))}
-                        </TableRow>
-                      ))
+                      <TableRow key={i}>
+                        {[0, 1, 2, 3].map((j) => (
+                          <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
                     : rows.map((r) => (
-                        <TableRow
-                          key={r.station_name}
-                          className={[
-                            "cursor-pointer text-xs",
-                            selectedStation === r.station_name
-                              ? "bg-accent"
-                              : "hover:bg-accent/50",
-                          ].join(" ")}
-                          onClick={() => setSelectedStation(
-                            selectedStation === r.station_name ? null : r.station_name
-                          )}
-                        >
-                          <TableCell className="font-medium py-1.5 max-w-[180px] truncate">
-                            {r.station_name}
-                          </TableCell>
-                          <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r[selectedPollutant], selectedPollutant)}`}>
-                            {fmt(r[selectedPollutant])}
-                          </TableCell>
-                          <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r.pm25, "pm25")}`}>
-                            {fmt(r.pm25)}
-                          </TableCell>
-                          <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r.no2, "no2")}`}>
-                            {fmt(r.no2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      <TableRow
+                        key={r.station_name}
+                        className={[
+                          "cursor-pointer text-xs",
+                          selectedStation === r.station_name
+                            ? "bg-accent"
+                            : "hover:bg-accent/50",
+                        ].join(" ")}
+                        onClick={() => setSelectedStation(
+                          selectedStation === r.station_name ? null : r.station_name
+                        )}
+                      >
+                        <TableCell className="font-medium py-1.5 max-w-[180px] truncate">
+                          {r.station_name}
+                        </TableCell>
+                        <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r[selectedPollutant], selectedPollutant)}`}>
+                          {fmt(r[selectedPollutant])}
+                        </TableCell>
+                        <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r.pm25, "pm25")}`}>
+                          {fmt(r.pm25)}
+                        </TableCell>
+                        <TableCell className={`text-right py-1.5 font-mono ${getPollutantColor(r.no2, "no2")}`}>
+                          {fmt(r.no2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </div>
