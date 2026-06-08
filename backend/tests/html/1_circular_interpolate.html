@@ -5,29 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Circular Interpolation Visualizer</title>
   <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#111a2e;
-      --panel2:#0f172a;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
-      --grid:#243044;
-      --accent:#38bdf8;
-      --ok:#34d399;
-      --warn:#f59e0b;
-      --bad:#f87171;
-      --line:#64748b;
-      --cyan:#22d3ee;
-      --violet:#a78bfa;
+    @import url('https://fonts.googleapis.com/css2?family=Cambria&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --grid: #cbd5e1;
+      --accent: #0284c7;
+      --ok: #059669;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --line: #475569;
+      --cyan: #0891b2;
+      --violet: #7c3aed;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 28px;
-      background: radial-gradient(circle at top, #12203a 0%, var(--bg) 55%);
+      background-color: var(--bg);
+      background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+      background-size: 20px 20px;
       color: var(--text);
-      font-family: Inter, Segoe UI, Tahoma, Arial, sans-serif;
+      font-family: 'Noto Serif', Cambria, Georgia, serif;
+      -webkit-font-smoothing: antialiased;
     }
 
     .wrap {
@@ -35,43 +40,56 @@
       margin: 0 auto;
     }
 
+    h1, h2, h3 {
+      font-family: 'Playfair Display', Cambria, Georgia, serif;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0;
+    }
+
     h1 {
-      margin: 0 0 8px;
-      font-size: 30px;
-      color: #dbeafe;
-      letter-spacing: 0.2px;
+      font-size: 34px;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
     }
 
     .sub {
-      margin: 0 0 22px;
+      margin: 0 0 24px;
       color: var(--muted);
-      line-height: 1.5;
+      font-size: 16px;
+      line-height: 1.6;
       max-width: 980px;
+    }
+
+    .math-symbol {
+      font-style: italic;
+      font-family: 'Noto Serif', Cambria, Georgia, serif;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 380px 1fr;
-      gap: 18px;
+      grid-template-columns: 390px 1fr;
+      gap: 24px;
       align-items: start;
     }
 
     .panel {
-      background: linear-gradient(180deg, rgba(17,26,46,0.95), rgba(10,16,30,0.95));
-      border: 1px solid rgba(148,163,184,0.18);
-      border-radius: 18px;
-      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
-      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+      padding: 24px;
     }
 
     .panel h2 {
-      margin: 0 0 14px;
-      font-size: 18px;
-      color: #dbeafe;
+      font-size: 20px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
     }
 
     .control {
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
     .label-row {
@@ -83,46 +101,49 @@
     }
 
     label {
-      font-weight: 600;
-      color: #cbd5e1;
+      font-weight: 700;
+      color: #334155;
+      font-size: 14px;
     }
 
     .val {
       color: var(--accent);
       font-weight: 700;
-      font-variant-numeric: tabular-nums;
+      font-family: 'Noto Serif', Georgia, serif;
     }
 
     input[type="range"] {
       width: 100%;
       accent-color: var(--accent);
+      cursor: pointer;
     }
 
     .metric-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: 16px;
     }
 
     .metric {
-      background: rgba(15, 23, 42, 0.72);
-      border: 1px solid rgba(148,163,184,0.14);
-      border-radius: 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       padding: 12px;
-      min-height: 72px;
+      min-height: 76px;
     }
 
     .metric .k {
       color: var(--muted);
       font-size: 12px;
-      margin-bottom: 6px;
+      font-weight: 700;
+      margin-bottom: 4px;
     }
 
     .metric .v {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
-      font-variant-numeric: tabular-nums;
+      font-style: italic;
     }
 
     .v.good { color: var(--ok); }
@@ -131,39 +152,42 @@
 
     .note {
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin-top: 12px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      margin-top: 18px;
+      background: #fdfefe;
+      padding: 12px;
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
     }
 
     .viz {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 18px;
+      gap: 24px;
     }
 
     .svg-card {
-      background: linear-gradient(180deg, rgba(17,26,46,0.96), rgba(10,16,30,0.96));
-      border: 1px solid rgba(148,163,184,0.18);
-      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
     }
 
     .svg-head {
-      padding: 14px 16px 0;
+      padding: 20px 24px 0;
     }
 
     .svg-head h2 {
-      margin: 0 0 6px;
-      font-size: 18px;
-      color: #dbeafe;
+      font-size: 20px;
+      margin-bottom: 6px;
     }
 
     .svg-head p {
       margin: 0 0 12px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.5;
     }
 
@@ -171,77 +195,86 @@
       width: 100%;
       height: auto;
       display: block;
-      background:
-        linear-gradient(transparent 0 0),
-        radial-gradient(circle at center, rgba(56,189,248,0.06), transparent 55%);
+      background: #ffffff;
+      border-top: 1px solid #f1f5f9;
+      border-bottom: 1px solid #f1f5f9;
     }
 
     .table-card {
-      background: linear-gradient(180deg, rgba(17,26,46,0.96), rgba(10,16,30,0.96));
-      border: 1px solid rgba(148,163,184,0.18);
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-variant-numeric: tabular-nums;
+      margin-top: 12px;
     }
 
     th, td {
       text-align: left;
-      padding: 10px 10px;
-      border-bottom: 1px solid rgba(148,163,184,0.14);
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
       vertical-align: middle;
     }
 
     th {
-      color: #cbd5e1;
-      font-size: 13px;
+      color: #334155;
+      font-size: 14px;
       font-weight: 700;
+      background: #f8fafc;
     }
 
     td {
-      color: #e2e8f0;
-      font-size: 14px;
+      color: var(--text);
+      font-size: 15px;
     }
 
     .pill {
       display: inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(56,189,248,0.12);
-      border: 1px solid rgba(56,189,248,0.28);
-      color: #bae6fd;
-      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      color: #0369a1;
+      font-size: 13px;
       font-weight: 700;
+      font-family: monospace;
     }
 
     .legend {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 16px;
-      padding: 0 16px 14px;
-      color: var(--muted);
-      font-size: 12px;
+      gap: 12px 20px;
+      padding: 16px 24px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     .legend span::before {
       content: "";
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       margin-right: 8px;
       vertical-align: -1px;
     }
 
-    .l1::before { background: #38bdf8; }
-    .l2::before { background: #f59e0b; }
-    .l3::before { background: #34d399; }
-    .l4::before { background: #cbd5e1; }
+    .l1::before { background: #0284c7; }
+    .l2::before { background: #d97706; }
+    .l3::before { background: #059669; }
+    .l4::before { background: #64748b; }
+
+    text {
+      font-family: 'Noto Serif', Cambria, Georgia, serif;
+      font-style: italic;
+    }
 
     @media (max-width: 1060px) {
       .grid { grid-template-columns: 1fr; }
@@ -252,18 +285,17 @@
 <div class="wrap">
   <h1>Circular Interpolation Visualizer</h1>
   <p class="sub">
-    This demo shows why wind direction and other circular variables must not be interpolated as ordinary numbers.
-    The left side computes the interpolation directly on the circle using <span class="pill">sin/cos</span>.
-    The right side visualizes the vectors, the midpoint, and the imputed values across the gap.
+    This module demonstrates why periodic angular boundaries and directional variables cannot be evaluated using naive Euclidean line transformations. 
+    The circular implementation utilizes transcendental transformations (<span class="pill">sin</span> / <span class="pill">cos</span>) to project inputs onto the complex unit circle.
   </p>
 
   <div class="grid">
     <div class="panel">
-      <h2>Controls</h2>
+      <h2>Parameter Spaces</h2>
 
       <div class="control">
         <div class="label-row">
-          <label for="a1">Observed angle A</label>
+          <label for="a1">Observed Angle <span class="math-symbol">A</span></label>
           <div class="val"><span id="a1-val">350</span>°</div>
         </div>
         <input id="a1" type="range" min="0" max="360" value="350" />
@@ -271,7 +303,7 @@
 
       <div class="control">
         <div class="label-row">
-          <label for="a2">Observed angle B</label>
+          <label for="a2">Observed Angle <span class="math-symbol">B</span></label>
           <div class="val"><span id="a2-val">10</span>°</div>
         </div>
         <input id="a2" type="range" min="0" max="360" value="10" />
@@ -279,7 +311,7 @@
 
       <div class="control">
         <div class="label-row">
-          <label for="t">Interpolation fraction</label>
+          <label for="t">Interpolation Coefficient <span class="math-symbol">t</span></label>
           <div class="val"><span id="t-val">0.50</span></div>
         </div>
         <input id="t" type="range" min="0" max="1" step="0.01" value="0.5" />
@@ -287,58 +319,56 @@
 
       <div class="metric-grid">
         <div class="metric">
-          <div class="k">Naive linear midpoint</div>
+          <div class="k">Naive Linear Result</div>
           <div class="v bad" id="naive-out">180.0°</div>
         </div>
         <div class="metric">
-          <div class="k">Circular midpoint</div>
+          <div class="k">Circular Interp</div>
           <div class="v good" id="circ-out">0.0°</div>
         </div>
         <div class="metric">
-          <div class="k">Vector X</div>
+          <div class="k">Component Vector <span class="math-symbol">x̄</span></div>
           <div class="v" id="x-out">0.966</div>
         </div>
         <div class="metric">
-          <div class="k">Vector Y</div>
+          <div class="k">Component Vector <span class="math-symbol">ȳ</span></div>
           <div class="v" id="y-out">0.000</div>
         </div>
       </div>
 
       <p class="note">
-        The key idea is simple: a direction is not a line on a number axis.
-        It is a point on a circle. So the safe workflow is:
-        angle → radians → unit vector → interpolate X/Y → reconstruct with atan2 → normalize to 0–360°.
+        <strong>Mathematical Rule:</strong> A vector direction is bounded as an element of the topological manifold <span class="math-symbol">S¹</span>. Real positions must be calculated via:
+        <br />
+        <span class="math-symbol">θ → [cos(θ), sin(θ)] → ∑ w_i x_i → atan2(ȳ, x̄)</span>.
       </p>
     </div>
 
     <div class="viz">
       <div class="svg-card">
         <div class="svg-head">
-          <h2>Geometry on the unit circle</h2>
+          <h2>Analytical Projection on the Unit Circle Map</h2>
           <p>
-            Blue and orange are the observed directions. Gray is the naive linear midpoint.
-            Green is the circularly interpolated result. The dashed chord shows the X/Y blend.
+            The geometric trace tracks coordinate mappings. Dashed segments chart the inner Cartesian convex chord combination.
           </p>
         </div>
 
         <svg id="svg" viewBox="0 0 820 640" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L0,6 L7,3 z" fill="#38bdf8"></path>
+            <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 z" fill="#0284c7"></path>
             </marker>
-            <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L0,6 L7,3 z" fill="#f59e0b"></path>
+            <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 z" fill="#d97706"></path>
             </marker>
-            <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L0,6 L7,3 z" fill="#34d399"></path>
+            <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 z" fill="#059669"></path>
             </marker>
-            <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L0,6 L7,3 z" fill="#cbd5e1"></path>
+            <marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 z" fill="#64748b"></path>
             </marker>
           </defs>
 
-          <!-- background grid -->
-          <g opacity="0.22" stroke="#243044" stroke-width="1">
+          <g opacity="0.4" stroke="#e2e8f0" stroke-width="1">
             <line x1="60" y1="80" x2="760" y2="80" />
             <line x1="60" y1="150" x2="760" y2="150" />
             <line x1="60" y1="220" x2="760" y2="220" />
@@ -357,51 +387,44 @@
             <line x1="690" y1="40" x2="690" y2="600" />
           </g>
 
-          <!-- circle and axes -->
           <g id="main-plot">
-            <circle cx="260" cy="320" r="220" fill="none" stroke="#475569" stroke-width="2"></circle>
-            <line x1="40" y1="320" x2="480" y2="320" stroke="#64748b" stroke-width="2"></line>
-            <line x1="260" y1="100" x2="260" y2="540" stroke="#64748b" stroke-width="2"></line>
+            <circle cx="260" cy="320" r="220" fill="none" stroke="#94a3b8" stroke-width="1.5"></circle>
+            <line x1="40" y1="320" x2="480" y2="320" stroke="#475569" stroke-width="1.5"></line>
+            <line x1="260" y1="100" x2="260" y2="540" stroke="#475569" stroke-width="1.5"></line>
 
-            <text x="472" y="314" fill="#cbd5e1" font-size="14">0°</text>
-            <text x="252" y="90" fill="#cbd5e1" font-size="14">90°</text>
-            <text x="28" y="314" fill="#cbd5e1" font-size="14">180°</text>
-            <text x="246" y="560" fill="#cbd5e1" font-size="14">270°</text>
+            <text x="475" y="316" fill="#0f172a" font-size="15">0°</text>
+            <text x="252" y="85" fill="#0f172a" font-size="15">90°</text>
+            <text x="12" y="316" fill="#0f172a" font-size="15">180°</text>
+            <text x="242" y="560" fill="#0f172a" font-size="15">270°</text>
 
-            <text x="250" y="64" fill="#94a3b8" font-size="12">unit circle</text>
+            <text x="270" y="125" fill="#94a3b8" font-size="13" font-style="normal">r = 1.0</text>
           </g>
 
-          <!-- chord / average segment -->
           <g id="blend-layer"></g>
-
-          <!-- observed vectors -->
           <g id="vector-layer"></g>
-
-          <!-- annotations -->
           <g id="text-layer"></g>
         </svg>
 
         <div class="legend">
-          <span class="l1">Observed angle A</span>
-          <span class="l2">Observed angle B</span>
-          <span class="l3">Circular interpolation result</span>
-          <span class="l4">Naive midpoint</span>
+          <span class="l1">Observed Matrix A</span>
+          <span class="l2">Observed Matrix B</span>
+          <span class="l3">Circular Reconstruction Vector</span>
+          <span class="l4">Euclidean Naive Reference</span>
         </div>
       </div>
 
       <div class="table-card">
-        <h2 style="margin:0 0 8px;color:#dbeafe;font-size:18px;">Imputation across the gap</h2>
-        <p style="margin:0 0 14px;color:#94a3b8;font-size:13px;line-height:1.5;">
-          This table shows how the missing values would be filled between the two observations.
-          The naive version walks through numeric degrees. The circular version walks through X/Y vectors.
+        <h2>Boundary Imputation Domain Across the Gap</h2>
+        <p style="margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5;">
+          This matrix steps iteratively through variable weight states to track variance metrics.
         </p>
         <table>
           <thead>
             <tr>
-              <th>t</th>
-              <th>Naive angle</th>
-              <th>Circular angle</th>
-              <th>Notes</th>
+              <th>State Ratio (t)</th>
+              <th>Naive Angular Mapping</th>
+              <th>Circular Unit Mapping</th>
+              <th>Manifold Status Check</th>
             </tr>
           </thead>
           <tbody id="impute-table"></tbody>
@@ -460,23 +483,22 @@
       stroke="${stroke}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ""} ${marker ? `marker-end="url(#${marker})"` : ""}></line>`;
   }
 
-  function circleDot(x, y, fill, stroke = "#0f172a", r = 7) {
+  function circleDot(x, y, fill, stroke = "#ffffff", r = 6) {
     return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"></circle>`;
   }
 
-  function label(x, y, text, fill = "#e2e8f0", anchor = "start", size = 14) {
+  function label(x, y, text, fill = "#1e293b", anchor = "start", size = 13) {
     return `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" fill="${fill}" font-size="${size}" text-anchor="${anchor}" dominant-baseline="middle">${text}</text>`;
   }
 
   function arcPath(startDeg, endDeg, radius) {
-    // shortest visible arc from start to end
     let s = normalize360(startDeg);
     let e = normalize360(endDeg);
     let delta = e - s;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
 
-    const large = Math.abs(delta) > 180 ? 1 : 0; // practically always 0 due to shortest arc
+    const large = Math.abs(delta) > 180 ? 1 : 0;
     const sweep = delta >= 0 ? 0 : 1;
 
     const p1 = polarToSvg(s, radius);
@@ -490,24 +512,24 @@
       const naive = naiveMean(a1, a2, t);
       const circ = circularMean(a1, a2, t).ang;
       let note = "";
-      if (t === 0.5 && Math.abs(normalize360(a1 - a2)) === 20) {
-        note = "midpoint";
+      if (t === 0.5 && Math.abs(normalize360(a1 - a2)) === 180) {
+        note = "Critical Antipodal Boundary";
       } else if (t === 0.5) {
-        note = "center of gap";
+        note = "Midpoint Vector State";
       } else if (t === 0) {
-        note = "observed A";
+        note = "Boundary Limit Vector A";
       } else if (t === 1) {
-        note = "observed B";
+        note = "Boundary Limit Vector B";
       } else {
-        note = "imputed";
+        note = "Interior State Matrix";
       }
 
       return `
         <tr>
-          <td>${t.toFixed(2)}</td>
-          <td>${naive.toFixed(1)}°</td>
-          <td style="color:#34d399;font-weight:700;">${circ.toFixed(1)}°</td>
-          <td style="color:#94a3b8;">${note}</td>
+          <td>t = ${t.toFixed(2)}</td>
+          <td style="color:var(--bad); font-weight: 600;">${naive.toFixed(1)}°</td>
+          <td style="color:var(--ok); font-weight:700;">${circ.toFixed(1)}°</td>
+          <td style="color:var(--muted); font-size: 13px;">${note}</td>
         </tr>
       `;
     }).join("");
@@ -530,11 +552,9 @@
     outX.textContent     = circ.x.toFixed(3);
     outY.textContent     = circ.y.toFixed(3);
 
-    // vectors
     const pA = polarToSvg(a1, R);
     const pB = polarToSvg(a2, R);
 
-    // linear blend of tip positions in Cartesian space
     const xA = Math.cos(deg2rad(a1));
     const yA = Math.sin(deg2rad(a1));
     const xB = Math.cos(deg2rad(a2));
@@ -548,37 +568,37 @@
     const naivePoint = polarToSvg(naive, 160);
     const circPoint = polarToSvg(circ.ang, 180);
 
-    // arc showing shortest route between A and B
     const arc = arcPath(a1, a2, 110);
 
     blendLayer.innerHTML = `
-      <path d="${arc}" fill="none" stroke="#38bdf8" stroke-width="4" stroke-dasharray="10 8" opacity="0.8"></path>
-      ${lineSVG(pA.x, pA.y, pB.x, pB.y, "#94a3b8", 2, "8 7")}
-      ${circleDot(blendX, blendY, "#cbd5e1", "#94a3b8", 7)}
-      ${label(blendX + 12, blendY - 12, "Cartesian blend", "#cbd5e1", "start", 12)}
+      <path d="${arc}" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.4"></path>
+      ${lineSVG(pA.x, pA.y, pB.x, pB.y, "#94a3b8", 1.5, "6 5")}
+      ${circleDot(blendX, blendY, "#475569", "#ffffff", 6)}
+      ${label(blendX + 12, blendY - 12, "Inner Convex Convex Mix [x, y]", "#475569", "start", 11)}
     `;
 
     vectorLayer.innerHTML = `
-      ${lineSVG(CX, CY, pA.x, pA.y, "#38bdf8", 5, "", "arrow-blue")}
-      ${lineSVG(CX, CY, pB.x, pB.y, "#f59e0b", 5, "", "arrow-orange")}
-      ${lineSVG(CX, CY, circPoint.x, circPoint.y, "#34d399", 6, "", "arrow-green")}
-      ${lineSVG(CX, CY, naivePoint.x, naivePoint.y, "#cbd5e1", 4, "10 7", "arrow-gray")}
-      ${circleDot(pA.x, pA.y, "#38bdf8")}
-      ${circleDot(pB.x, pB.y, "#f59e0b")}
-      ${circleDot(circPoint.x, circPoint.y, "#34d399")}
-      ${circleDot(naivePoint.x, naivePoint.y, "#cbd5e1")}
+      ${lineSVG(CX, CY, pA.x, pA.y, "#0284c7", 3.5, "", "arrow-blue")}
+      ${lineSVG(CX, CY, pB.x, pB.y, "#d97706", 3.5, "", "arrow-orange")}
+      ${lineSVG(CX, CY, circPoint.x, circPoint.y, "#059669", 4.5, "", "arrow-green")}
+      ${lineSVG(CX, CY, naivePoint.x, naivePoint.y, "#64748b", 2.5, "8 5", "arrow-gray")}
+      ${circleDot(pA.x, pA.y, "#0284c7")}
+      ${circleDot(pB.x, pB.y, "#d97706")}
+      ${circleDot(circPoint.x, circPoint.y, "#059669")}
+      ${circleDot(naivePoint.y ? naivePoint.x : naivePoint.x, naivePoint.y, "#64748b")}
     `;
 
     textLayer.innerHTML = `
-      ${label(pA.x + 14, pA.y + 4, "A", "#93c5fd", "start", 14)}
-      ${label(pB.x + 14, pB.y + 4, "B", "#fcd34d", "start", 14)}
-      ${label(circPoint.x + 14, circPoint.y + 4, "Circular result", "#86efac", "start", 14)}
-      ${label(naivePoint.x + 14, naivePoint.y + 4, "Naive result", "#e2e8f0", "start", 14)}
-      ${label(CX + 12, CY - 12, `t = ${t.toFixed(2)}`, "#dbeafe", "start", 13)}
-      ${label(520, 150, `A = ${a1.toFixed(0)}°`, "#38bdf8", "start", 14)}
-      ${label(520, 175, `B = ${a2.toFixed(0)}°`, "#f59e0b", "start", 14)}
-      ${label(520, 200, `Naive = ${naive.toFixed(1)}°`, "#cbd5e1", "start", 14)}
-      ${label(520, 225, `Circular = ${circ.ang.toFixed(1)}°`, "#34d399", "start", 14)}
+      ${label(pA.x + 14, pA.y + 4, "A", "#0284c7", "start", 14)}
+      ${label(pB.x + 14, pB.y + 4, "B", "#d97706", "start", 14)}
+      ${label(circPoint.x + 14, circPoint.y + 4, "Circular Vector Result", "#059669", "start", 14)}
+      ${label(naivePoint.x + 14, naivePoint.y + 4, "Naive Scalar Interpolation", "#64748b", "start", 14)}
+      ${label(CX + 12, CY - 16, `t = ${t.toFixed(2)}`, "#0f172a", "start", 12)}
+      
+      ${label(530, 220, `Vector A = ${a1.toFixed(0)}°`, "#0284c7", "start", 15)}
+      ${label(530, 250, `Vector B = ${a2.toFixed(0)}°`, "#d97706", "start", 15)}
+      ${label(530, 280, `Naive Coordinate = ${naive.toFixed(1)}°`, "#64748b", "start", 15)}
+      ${label(530, 310, `Manifold Center = ${circ.ang.toFixed(1)}°`, "#059669", "start", 15)}
     `;
 
     renderTable(a1, a2);

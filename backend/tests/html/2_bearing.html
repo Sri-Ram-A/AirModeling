@@ -3,94 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spherical Bearing</title>
+    <title>Spherical Bearing Visualizer</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Cambria&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+
+        body { 
+            font-family: 'Noto Serif', Cambria, Georgia, serif; 
+            -webkit-font-smoothing: antialiased;
+        }
+        .math-font {
+            font-family: 'Noto Serif', Cambria, Georgia, serif;
+        }
+        .math-heading {
+            font-family: 'Playfair Display', Cambria, Georgia, serif;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+<body class="bg-slate-50 text-slate-900 min-h-screen p-6 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
 
     <div class="max-w-6xl mx-auto space-y-6">
         
-        <header class="border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-extrabold text-sky-400">Spherical Bearing Visualizer</h1>
-            <p class="text-slate-400 mt-1">Interactively decomposing the vector mathematics behind <code>np.arctan2(y, x)</code> on a globe.</p>
+        <header class="border-b border-slate-300 pb-4">
+            <h1 class="text-3xl font-bold text-slate-900 math-heading tracking-tight">Spherical Bearing Visualizer</h1>
+            <p class="text-slate-600 mt-1 font-normal text-sm">Interactively decomposing the directional vector manifolds behind <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-sky-700 text-xs font-mono">np.arctan2(y, x)</code> on a ellipsoidal geometry.</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            <div class="lg:col-span-5 bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4 flex flex-col justify-between">
+            <div class="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                 <div>
-                    <h2 class="text-xl font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">1. Live Math Analytics</h2>
+                    <h2 class="text-lg font-bold text-slate-900 border-b border-slate-200 pb-2 mb-4 math-heading">1. Analytical Parameter Space</h2>
                     
                     <div class="grid grid-cols-2 gap-3 text-xs font-mono mb-4">
-                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
-                            <span class="text-teal-400 font-bold block mb-1">📍 Point 1 (Source)</span>
-                            Lat: <span id="out-lat1" class="text-white">-</span>°<br>
-                            Lon: <span id="out-lon1" class="text-white">-</span>°
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-sky-700 font-bold block mb-1 math-font italic">📍 Point 1 (Source)</span>
+                            Lat: <span id="out-lat1" class="text-slate-900 font-bold">-</span>°<br>
+                            Lon: <span id="out-lon1" class="text-slate-900 font-bold">-</span>°
                         </div>
-                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
-                            <span class="text-amber-400 font-bold block mb-1">🎯 Point 2 (Target)</span>
-                            Lat: <span id="out-lat2" class="text-white">-</span>°<br>
-                            Lon: <span id="out-lon2" class="text-white">-</span>°
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <span class="text-amber-700 font-bold block mb-1 math-font italic">🎯 Point 2 (Target)</span>
+                            Lat: <span id="out-lat2" class="text-slate-900 font-bold">-</span>°<br>
+                            Lon: <span id="out-lon2" class="text-slate-900 font-bold">-</span>°
                         </div>
                     </div>
 
-                    <div class="space-y-3 font-mono text-xs bg-slate-950 p-4 rounded-xl border border-slate-900">
+                    <div class="space-y-3 text-xs bg-stone-50 p-4 rounded-xl border border-stone-200">
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Step 1: Spherical Delta Longitude</span>
-                            <div class="text-slate-300 mt-0.5">Δλ = lon2 - lon1 = <span id="math-dlon" class="text-white">-</span> rad</div>
+                            <span class="text-slate-500 block font-bold text-[11px] uppercase tracking-wider math-heading">Step 1: Spherical Delta Longitude</span>
+                            <div class="text-slate-800 mt-0.5 math-font italic">Δλ = lon₂ - lon₁ = <span id="math-dlon" class="text-slate-900 font-bold font-mono not-italic">-</span> rad</div>
                         </div>
 
-                        <div class="border-t border-slate-900 pt-2">
-                            <span class="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Step 2: Vector Projections</span>
-                            <p class="text-[11px] text-slate-500 mb-1 leading-tight">Projecting the spherical displacement onto a local flat coordinate window.</p>
-                            <div class="space-y-1 text-slate-300">
-                                <div class="flex justify-between bg-slate-900/60 p-1.5 rounded">
-                                    <span>y (East-West Axis):</span>
-                                    <span id="math-y" class="text-purple-400 font-bold">-</span>
+                        <div class="border-t border-stone-200 pt-2">
+                            <span class="text-slate-500 block font-bold text-[11px] uppercase tracking-wider math-heading">Step 2: Geodetic Spatial Projections</span>
+                            <p class="text-[11px] text-slate-500 mb-2 leading-tight">Mapping orthogonal components onto a localized coordinate tangent plane.</p>
+                            <div class="space-y-1.5 math-font">
+                                <div class="flex justify-between bg-white p-2 rounded border border-stone-200/60 font-mono text-[11px]">
+                                    <span class="italic font-serif">y (East-West Component):</span>
+                                    <span id="math-y" class="text-purple-700 font-bold">-</span>
                                 </div>
-                                <div class="flex justify-between bg-slate-900/60 p-1.5 rounded">
-                                    <span>x (North-South Axis):</span>
-                                    <span id="math-x" class="text-emerald-400 font-bold">-</span>
+                                <div class="flex justify-between bg-white p-2 rounded border border-stone-200/60 font-mono text-[11px]">
+                                    <span class="italic font-serif">x (North-South Component):</span>
+                                    <span id="math-x" class="text-emerald-700 font-bold">-</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="border-t border-slate-900 pt-2">
-                            <span class="text-slate-400 block font-semibold text-[11px] uppercase tracking-wider">Step 3: Quadrant Correction Engine</span>
-                            <div class="text-slate-300 mt-0.5">θ = atan2(y, x) = <span id="math-theta" class="text-white">-</span> rad</div>
+                        <div class="border-t border-stone-200 pt-2">
+                            <span class="text-slate-500 block font-bold text-[11px] uppercase tracking-wider math-heading">Step 3: Quadrant Inversion Engine</span>
+                            <div class="text-slate-800 mt-0.5 math-font italic">θ = atan2(y, x) = <span id="math-theta" class="text-slate-900 font-bold font-mono not-italic">-</span> rad</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-sky-950/40 border border-sky-800/60 p-4 rounded-xl mt-4">
-                    <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Final Output (Clockwise Heading)</span>
-                    <div class="text-2xl font-black font-mono text-amber-400 mt-1 flex justify-between items-baseline">
-                        <span id="math-bearing">-°</span>
-                        <span id="compass-direction" class="text-sm font-semibold text-sky-300">NORTH</span>
+                <div class="bg-sky-50 border border-sky-200 p-4 rounded-xl mt-4">
+                    <span class="text-xs font-bold text-sky-800 uppercase tracking-wider math-heading">Forward Azimuth Heading</span>
+                    <div class="text-2xl font-bold font-mono text-amber-700 mt-1 flex justify-between items-baseline math-font italic">
+                        <span id="math-bearing" class="font-bold not-italic">-°</span>
+                        <span id="compass-direction" class="text-xs font-bold text-sky-800 tracking-wide not-italic uppercase font-sans">NORTH</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1 leading-normal">
-                        This is the compass direction you must face at Point 1 to travel along the shortest direct route to Point 2.
+                    <p class="text-[11px] text-slate-600 mt-1.5 leading-relaxed">
+                        This represents the initial orientation vector angle relative to the meridian arc required to navigate along the shortest geodesic line path.
                     </p>
                 </div>
             </div>
 
-            <div class="lg:col-span-7 bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
+            <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-sky-300">2. Interactive Geographic Sandbox</h2>
-                    <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">Action: Click and drag either node</span>
+                    <h2 class="text-lg font-bold text-slate-900 math-heading">2. Geometric Map Sandbox Workspace</h2>
+                    <span class="text-[11px] font-sans font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">Action: Drag boundary handles</span>
                 </div>
                 
-                <div class="relative flex justify-center bg-slate-950 rounded-xl p-2 border border-slate-900">
+                <div class="relative flex justify-center bg-white rounded-xl p-1 border border-slate-200">
                     <canvas id="vectorCanvas" width="600" height="450" class="cursor-pointer max-w-full"></canvas>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-2 text-[11px] text-slate-400 text-center font-mono">
-                    <div class="flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> ── True North</div>
-                    <div class="flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 inline-block"></span> Vector Y (E/W)</div>
-                    <div class="flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Vector X (N/S)</div>
+                <div class="grid grid-cols-3 gap-2 text-[11px] text-slate-600 text-center font-sans font-medium">
+                    <div class="flex items-center justify-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span> Local Meridian (North)</div>
+                    <div class="flex items-center justify-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span> Coordinate Vector Y</div>
+                    <div class="flex items-center justify-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span> Coordinate Vector X</div>
                 </div>
             </div>
 
@@ -101,19 +112,15 @@
         const canvas = document.getElementById('vectorCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Setup Simulated Map Projection Boundaries (Representing a patch of Earth)
-        // Center of canvas maps roughly to coordinate cross-sections
         const mapBounds = {
             minLat: 10.0, maxLat: 60.0,
             minLon: -120.0, maxLon: -60.0
         };
 
-        // Interactive Handle Coordinates State Positions
-        let p1 = { x: 200, y: 300 }; // Point 1 (Source)
-        let p2 = { x: 420, y: 150 }; // Point 2 (Target)
+        let p1 = { x: 200, y: 300 }; 
+        let p2 = { x: 420, y: 150 }; 
         let activeHandle = null;
 
-        // Document Readout Binding Targets
         const readouts = {
             lat1: document.getElementById('out-lat1'), lon1: document.getElementById('out-lon1'),
             lat2: document.getElementById('out-lat2'), lon2: document.getElementById('out-lon2'),
@@ -124,7 +131,7 @@
             compass: document.getElementById('compass-direction')
         };
 
-        // Helper conversion utility linking pixel matrices to absolute coordinate formats
+        // Connect canvas space transformations to coordinate metrics
         function pixelToCoord(x, y) {
             const lat = mapBounds.maxLat - (y / canvas.height) * (mapBounds.maxLat - mapBounds.minLat);
             const lon = mapBounds.minLon + (x / canvas.width) * (mapBounds.maxLon - mapBounds.minLon);
@@ -133,34 +140,29 @@
 
         function getCompassString(deg) {
             const index = Math.floor(((deg + 11.25) % 360) / 22.5);
-            const array = ["NORTH (0°)","NORTH-EAST (45°)","EAST (90°)","SOUTH-EAST (135°)","SOUTH (180°)","SOUTH-WEST (225°)","WEST (270°)","NORTH-WEST (315°)"];
+            const array = ["North (0°)","North-East (45°)","East (90°)","South-East (135°)","South (180°)","South-West (225°)","West (270°)","North-West (315°)"];
             return array[Math.floor(index / 2) % 8];
         }
 
-        // Core Mathematical Processing Routine Engine
         function processBearingMath() {
             const c1 = pixelToCoord(p1.x, p1.y);
             const c2 = pixelToCoord(p2.x, p2.y);
 
-            // Print localized coordinate parameters
             readouts.lat1.innerText = c1.lat.toFixed(2);
             readouts.lon1.innerText = c1.lon.toFixed(2);
             readouts.lat2.innerText = c2.lat.toFixed(2);
             readouts.lon2.innerText = c2.lon.toFixed(2);
 
-            // Execute radian conversions
             const phi1 = c1.lat * Math.PI / 180;
             const phi2 = c2.lat * Math.PI / 180;
             const deltaLambda = (c2.lon - c1.lon) * Math.PI / 180;
 
-            // Compute math coordinate vector parameters
             const yVec = Math.sin(deltaLambda) * Math.cos(phi2);
             const xVec = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
             
             const theta = Math.atan2(yVec, xVec);
             const bearingRaw = (theta * 180 / Math.PI + 360) % 360;
 
-            // Feed algorithmic analytical traces directly to UI
             readouts.dlon.innerText = deltaLambda.toFixed(5);
             readouts.y.innerText = yVec.toFixed(5);
             readouts.x.innerText = xVec.toFixed(5);
@@ -171,102 +173,100 @@
             renderSandbox(xVec, yVec, bearingRaw);
         }
 
-        // Graphical UI Render Loop Execution Frame
         function renderSandbox(xVec, yVec, bearing) {
-            // Clean backdrop space
-            ctx.fillStyle = '#0f172a';
+            // Background Canvas Area
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Background Latitude/Longitude Grid Lines
-            ctx.strokeStyle = '#1e293b';
+            // Fine Coordinate Grid Systems
+            ctx.strokeStyle = '#f1f5f9';
             ctx.lineWidth = 1;
-            for (let i = 50; i < canvas.width; i += 75) {
+            for (let i = 50; i < canvas.width; i += 50) {
                 ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
             }
-            for (let j = 50; j < canvas.height; j += 75) {
+            for (let j = 50; j < canvas.height; j += 50) {
                 ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
             }
 
-            // Draw Local Reference Horizon Coordinate Crosshair at Point 1
-            ctx.strokeStyle = '#334155';
+            // Local Reference Horizon Axis Box at Origin Point 1
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
-            ctx.moveTo(p1.x - 60, p1.y); ctx.lineTo(p1.x + 60, p1.y);
-            ctx.moveTo(p1.x, p1.y - 60); ctx.lineTo(p1.x, p1.y + 60);
+            ctx.moveTo(p1.x - 70, p1.y); ctx.lineTo(p1.x + 70, p1.y);
+            ctx.moveTo(p1.x, p1.y - 70); ctx.lineTo(p1.x, p1.y + 70);
             ctx.stroke();
 
-            // Draw True North Reference Vector Indicator Line
-            ctx.strokeStyle = '#0ea5e9'; // Sky blue
+            // Local North Vector Meridian Path Indicator Line
+            ctx.strokeStyle = '#0284c7'; 
             ctx.lineWidth = 2;
+            ctx.setLineDash([]);
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p1.x, p1.y - 120);
+            ctx.lineTo(p1.x, p1.y - 110);
             ctx.stroke();
             
-            // Text annotation representing North reference benchmark
-            ctx.fillStyle = '#0ea5e9';
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText("TRUE NORTH (0°)", p1.x - 45, p1.y - 128);
+            // Text Label Annotations matching traditional math prints
+            ctx.fillStyle = '#0284c7';
+            ctx.font = 'italic 11px "Noto Serif", Cambria, serif';
+            ctx.fillText("True North (0°)", p1.x - 40, p1.y - 118);
 
-            // Draw Local Orthogonal Vector Decompositions representing how atan2 reads values
-            // Vector X (North-South projection)
-            ctx.strokeStyle = '#10b981'; // Emerald
-            ctx.lineWidth = 3;
-            ctx.setLineDash([]);
+            // Vector Component Trace Decoupling lines
+            // Orthogonal Vector X Projection (North-South Line Segment)
+            ctx.strokeStyle = '#059669'; 
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p1.x, p2.y);
             ctx.stroke();
 
-            // Vector Y (East-West projection)
-            ctx.strokeStyle = '#a855f7'; // Purple
+            // Orthogonal Vector Y Projection (East-West Line Segment)
+            ctx.strokeStyle = '#7c3aed'; 
             ctx.beginPath();
             ctx.moveTo(p1.x, p2.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            // Draw Primary Vector Target Chord Connection Line linking endpoints
-            ctx.strokeStyle = '#f59e0b'; // Amber
-            ctx.lineWidth = 2.5;
+            // Primary Geodesic Trajectory Direction Ray
+            ctx.strokeStyle = '#b45309'; 
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            // Draw Clockwise Compass Angular Heading Track Arc
-            ctx.strokeStyle = '#eab308';
+            // Directional Azimuth Trajectory Displacement Angle Sweep Arc
+            ctx.strokeStyle = '#b45309';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            // Canvas angles start at 3 o'clock moving clockwise. North is -90 degrees (-PI/2)
             const startAngle = -Math.PI / 2;
             const endAngle = startAngle + (bearing * Math.PI / 180);
-            ctx.arc(p1.x, p1.y, 45, startAngle, endAngle, false);
+            ctx.arc(p1.x, p1.y, 40, startAngle, endAngle, false);
             ctx.stroke();
 
-            // Draw Interactive Handle Anchor Point 1
-            ctx.fillStyle = '#14b8a6'; // Teal
-            ctx.beginPath(); ctx.arc(p1.x, p1.y, 8, 0, 2 * Math.PI); ctx.fill();
+            // Source Matrix Anchor Terminal 1 Point Handles
+            ctx.fillStyle = '#0284c7'; 
+            ctx.beginPath(); ctx.arc(p1.x, p1.y, 7, 0, 2 * Math.PI); ctx.fill();
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
 
-            // Draw Interactive Handle Anchor Point 2
-            ctx.fillStyle = '#f59e0b'; // Amber
-            ctx.beginPath(); ctx.arc(p2.x, p2.y, 8, 0, 2 * Math.PI); ctx.fill();
+            // Target Position Anchor Terminal 2 Point Handles
+            ctx.fillStyle = '#b45309'; 
+            ctx.beginPath(); ctx.arc(p2.x, p2.y, 7, 0, 2 * Math.PI); ctx.fill();
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
 
-            // Text Label Annotations adjacent to system nodes
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '11px sans-serif';
-            ctx.fillText(" Point 1 (Source)", p1.x + 12, p1.y + 4);
-            ctx.fillText(" Point 2 (Target)", p2.x + 12, p2.y + 4);
+            // Label text overlay blocks
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'italic 12px "Noto Serif", Cambria, serif';
+            ctx.fillText("Point 1 (P₁)", p1.x + 14, p1.y + 4);
+            ctx.fillText("Point 2 (P₂)", p2.x + 14, p2.y + 4);
         }
 
-        // Interactive Tracking Physics Drag-and-Drop Event Listeners
+        // Pointer System Interaction Mechanics Loop tracking
         canvas.addEventListener('mousedown', function(e) {
             const rect = canvas.getBoundingClientRect();
             const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
             const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-            // Evaluate tracking target distance threshold bounds
             const d1 = Math.hypot(mx - p1.x, my - p1.y);
             const d2 = Math.hypot(mx - p2.x, my - p2.y);
 
@@ -280,9 +280,8 @@
             const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
             const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-            // Bound constraint enforcement checks keeping handles within operational box limits
-            const boundedX = Math.max(10, Math.min(canvas.width - 10, mx));
-            const boundedY = Math.max(10, Math.min(canvas.height - 10, my));
+            const boundedX = Math.max(15, Math.min(canvas.width - 15, mx));
+            const boundedY = Math.max(15, Math.min(canvas.height - 15, my));
 
             if (activeHandle === 'P1') {
                 p1.x = boundedX; p1.y = boundedY;
@@ -296,7 +295,6 @@
             activeHandle = null;
         });
 
-        // Initialize execution on runtime launch
         processBearingMath();
     </script>
 </body>
